@@ -190,6 +190,12 @@ publisher need signing credentials. The GitHub Actions workflow in
 `.github/workflows/build.yml` builds unsigned installers for all three targets as
 workflow artifacts.
 
+To release, set the version in `package.json`, rename CHANGELOG.md's "Unreleased"
+heading to that version, then push a matching tag (for example `v0.3.0`).
+`.github/workflows/release.yml` builds every target, writes `SHA256SUMS.txt` and
+creates a draft GitHub release with the changelog section. Review the draft, then
+publish it.
+
 ## Tests
 
 | Command | What it checks |
