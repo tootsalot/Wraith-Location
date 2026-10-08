@@ -57,7 +57,7 @@ export class AndroidAdapter {
     if (this.adbPath) return this.adbPath;
     const binary = process.platform === 'win32' ? 'adb.exe' : 'adb';
     const candidates = this.resourceRoots().map(root => path.join(root, 'adb', `${process.platform}-${process.arch}`, binary));
-    if (process.env.GHOST_ADB_PATH) candidates.unshift(process.env.GHOST_ADB_PATH);
+    if (process.env.WRAITH_ADB_PATH) candidates.unshift(process.env.WRAITH_ADB_PATH);
     for (const candidate of candidates) if (await exists(candidate)) return (this.adbPath = candidate);
     // A developer-provided platform-tools installation is also supported.
     return binary;

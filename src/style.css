@@ -137,9 +137,9 @@ svg.lucide { width: 16px; height: 16px; flex: none; }
 /* ---------- Title bar ---------- */
 .titlebar { position: relative; z-index: 20; height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 16px; background: var(--surface); border-bottom: 1px solid var(--line); -webkit-app-region: drag; }
 .window-inset { display: none; width: 64px; flex: none; }
-html:not(.host-windows).desktop-app .window-inset { display: block; }
+html.host-mac.desktop-app .window-inset { display: block; }
 .wordmark { display: flex; align-items: center; gap: 9px; width: 280px; flex: none; color: var(--text); font-size: 16px; font-weight: 600; letter-spacing: 0.2px; text-decoration: none; }
-html:not(.host-windows).desktop-app .wordmark { width: 216px; }
+html.host-mac.desktop-app .wordmark { width: 216px; }
 .rail-emblem { display: grid; place-items: center; width: 28px; height: 28px; color: var(--accent); }
 .rail-emblem svg { width: 26px; height: 26px; }
 .search-wrapper { position: relative; flex: 1; max-width: 540px; margin: 0 auto; }
@@ -458,7 +458,7 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
 
 /* ---------- Smaller windows ---------- */
 @media (max-width: 1180px) {
-  .wordmark, html:not(.host-windows).desktop-app .wordmark { width: auto; }
+  .wordmark, html.host-mac.desktop-app .wordmark { width: auto; }
   .phone-chip-text small { display: none; }
   .route-telemetry { grid-template-columns: auto minmax(0, 1fr); }
   .eta { display: none; }

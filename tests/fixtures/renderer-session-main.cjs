@@ -3,15 +3,15 @@
 const { app, BrowserWindow, session } = require('electron');
 const path = require('node:path');
 
-if (!process.env.GHOST_RENDERER_TEST_DATA || !process.env.GHOST_RENDERER_DIST) {
+if (!process.env.WRAITH_RENDERER_TEST_DATA || !process.env.WRAITH_RENDERER_DIST) {
   throw new Error('Run this fixture through npm run test:renderer-session.');
 }
-app.setPath('userData', process.env.GHOST_RENDERER_TEST_DATA);
+app.setPath('userData', process.env.WRAITH_RENDERER_TEST_DATA);
 app.commandLine.appendSwitch('disable-background-networking');
 
 app.whenReady().then(async () => {
   const isolation = { mode: 'no-phone-no-network', blockedRequests: 0 };
-  globalThis.ghostRendererFixture = isolation;
+  globalThis.wraithRendererFixture = isolation;
   session.defaultSession.webRequest.onBeforeRequest(
     { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
     (_request, callback) => {
@@ -35,7 +35,7 @@ app.whenReady().then(async () => {
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
-  await window.loadFile(path.join(process.env.GHOST_RENDERER_DIST, 'index.html'));
+  await window.loadFile(path.join(process.env.WRAITH_RENDERER_DIST, 'index.html'));
   // A never-shown window stops painting, which hangs screenshots. Show it without stealing focus.
   window.showInactive();
 }).catch(error => {

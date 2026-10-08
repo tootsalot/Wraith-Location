@@ -53,7 +53,7 @@ async function prepareAdb(platform, arch) {
     throw new Error('Supported ADB package targets: darwin-arm64, darwin-x64 and win32-x64.');
   }
   const url = `https://dl.google.com/android/repository/${archive.file}`;
-  const temp = await mkdtemp(path.join(tmpdir(), 'ghost-android-'));
+  const temp = await mkdtemp(path.join(tmpdir(), 'wraith-android-'));
   try {
     console.log(`Downloading pinned Android Platform Tools 37.0.1 for ${platform}-${arch}…`);
     const response = await fetch(url, {signal: AbortSignal.timeout(90_000)});

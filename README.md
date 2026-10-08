@@ -6,16 +6,15 @@ with iPhone and Android, over a USB cable or Wi-Fi, on Windows and macOS.
 
 ![Wraith in dark mode, driving from Union Station to Navy Pier in Chicago at 32 mph in a 30 zone](docs/images/wraith-route-dark.png)
 
-**[Download Wraith 0.2.0 for Windows](https://github.com/tootsalot/ghost-Toots/releases/latest)**, then follow the
+**[Download Wraith 0.2.1 for Windows](https://github.com/tootsalot/Wraith-Location/releases/latest)**, then follow the
 [setup guide](SETUP.md) to connect your phone.
 
-Wraith is a modified version of [Ghost](https://github.com/Blueturboguy07/ghost-location). It is free
-software under the GNU GPL v3 or later.
+Wraith is free software under the GNU GPL v3 or later.
 
 ## Install
 
-**Windows 10 or 11 (64-bit):** download `Wraith-0.2.0-win-x64.exe` from the
-[latest release](https://github.com/tootsalot/ghost-Toots/releases/latest) and run it. The
+**Windows 10 or 11 (64-bit):** download `Wraith-0.2.1-win-x64.exe` from the
+[latest release](https://github.com/tootsalot/Wraith-Location/releases/latest) and run it. The
 installer isn't code-signed yet, so Windows SmartScreen may warn you; choose
 **More info → Run anyway** if you trust the download. Each release lists a SHA-256
 checksum you can compare against.
@@ -24,8 +23,7 @@ checksum you can compare against.
 on the Mac you'll use.
 
 The app includes everything it needs to talk to phones. You don't need Python,
-Node.js, Android Studio or an account. If you used Ghost before, Wraith copies your
-saved places, setup choices and saved routes the first time it starts.
+Node.js, Android Studio or an account.
 
 ## Using Wraith
 
@@ -156,10 +154,10 @@ system-wide install:
 
 ```sh
 uv python install 3.12
-GHOST_BUILD_PYTHON="$(uv python find 3.12)" npm run runtime:prepare
+WRAITH_BUILD_PYTHON="$(uv python find 3.12)" npm run runtime:prepare
 ```
 
-In PowerShell, run `$env:GHOST_BUILD_PYTHON = (uv python find 3.12)` first. The
+In PowerShell, run `$env:WRAITH_BUILD_PYTHON = (uv python find 3.12)` first. The
 runtime step downloads Python packages, Google's platform tools and the Android
 helper. It doesn't change any phone settings.
 
@@ -181,18 +179,11 @@ workflow artifacts.
 | `npm run test:native` | The real app with read-only phone discovery, live search and route planning. It never sets or restores a location |
 | `npm run test:ios-stream` | The iPhone bridge end to end, with only the phone connection simulated |
 
-Set `GHOST_SMOKE_EXECUTABLE` to a packaged app and run `node scripts/smoke-electron.mjs`
+Set `WRAITH_SMOKE_EXECUTABLE` to a packaged app and run `node scripts/smoke-electron.mjs`
 to check a build. Automated tests use simulated phones; real-device results are
 tracked in [docs/hardware-test-matrix.md](docs/hardware-test-matrix.md).
 
-## Credits and license
-
-Wraith is based on [Ghost](https://github.com/Blueturboguy07/ghost-location), copyright the
-Ghost contributors. Tootsalot modified it in October 2026 for version 0.2.0: renamed it,
-redesigned the interface, added realistic route motion, travel modes, saved routes, GPX
-support and route editing after arrival, and changed the routing provider. The full
-history is in this repository's git log. Wraith is not affiliated with or endorsed by
-the Ghost project.
+## License
 
 Wraith is free software under the GNU General Public License v3.0 or later. See
 [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Map data ©

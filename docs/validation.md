@@ -1,168 +1,31 @@
-# Local validation
+# Validation
 
-## Public 0.1.5 native builds
+Results of checks run on real builds. Automated tests use simulated phones; real-device
+results are in [hardware-test-matrix.md](hardware-test-matrix.md).
 
-[GitHub Actions run 34771723845](https://github.com/Blueturboguy07/ghost-location/actions/runs/34771723845) passed on all three native targets at source commit `cb0ccc0ecb4c6168dfa996458b0a3b62e2081d4f`:
-
-- Windows x64: bundled runtime preparation, adapter/sidecar tests, and EXE installer.
-- macOS Apple Silicon: bundled runtime preparation, adapter/sidecar tests, DMG and ZIP.
-- macOS Intel: bundled runtime preparation, adapter/sidecar tests, DMG and ZIP.
-
-The Intel build links cryptography's OpenSSL statically to avoid a shared-library collision with sslpsk in the frozen runtime. The Windows x86-ADB unit check uses a PE fixture on Mac and the real Windows binary on Windows. A separate local run passed all 113 tests.
-
-These checks establish native packaging and software behavior, not all four physical USB pairings. Mac → iPhone use has been reported and observed locally; the remaining phone combinations still need physical validation. The public setup guide keeps that distinction explicit.
-
-The Publik screenshot uses the actual renderer with an isolated example phone and a public Chicago OSRM route. It does not contain a user's phone identity or make device commands.
-
-
-## v0.1.5 route playback — 2026-09-13
+## 0.2.1 (Windows x64)
 
 | Check | Result |
 | --- | --- |
-| `node --test --test-concurrency=1 tests/*.test.mjs` | 113 passed, 0 failed, 0 skipped. Includes both adapter paths, 45 mph arc-distance interpolation around bends, one-second backend scheduling, pause/resume, arrival, disconnect/sleep, slow writes, in-flight Restore, and rejection of old or different-phone sessions. |
-| Android moving targets | Fake ADB transport confirms one service-target command per update without setup/readback retry loops; recent tracker lag is tolerated, unrelated coordinates are rejected. Appium 8.0.9 source confirms each new intent schedules an immediate mock fix. No APK modification. |
-| Renderer regression | Passed: ten heartbeats over 9.27 seconds preserve fixed-location controls and drafts. Route stops, planning without mutation, Start/Pause/Resume, backend-driven marker movement, and compact controls pass with a fake phone and all external requests blocked. |
-| Live OSRM / native IPC | Passed with both source and packaged app. A Chicago driving route returned 115 geometry points and 2,652 metres. No route was started and no phone location commands were sent. |
-| macOS arm64 app | Built as 0.1.5. Packaged smoke confirms both bundled runtimes, all four onboarding guides, saved-place CRUD, live search, route preview, settings, and compact layout. |
-| Installer integrity | DMG verified with `hdiutil verify`; ZIP passed `unzip -tq`; SHA-256 values recorded in `release/SHA256SUMS-0.1.5.txt`. |
+| `npm test` | All unit tests pass. |
+| `npm run test:renderer-session` | Passes: live-update stability, route plan/start/pause/resume, Wi-Fi prompt and handoff. |
+| `npm run test:native` | Passes with read-only discovery, live search and live Valhalla planning. |
+| Theme switching | Dark, light and system switch in both directions with no main-process errors. |
+| Windows title bar | Caption buttons draw inside Wraith's title bar in the theme colour; no native title bar. |
+| Packaged smoke | Passes; a connected iPhone was discovered and both runtimes reported available. |
+| Installer | `Wraith-0.2.1-win-x64.exe`, 146.7 MB; app archive 1.5 MB (was 24.3 MB). SHA-256 `a370f20707436232d3cf97f78305ee68538953477f5a09724a9f14170ecefab1`. |
 
-One concurrent test run and the first packaging attempt hit process-startup timeouts
-while the host was under load. The full suite passed when run serially; renderer
-and packaging retries passed unchanged. No timeouts or assertions were weakened.
-
-Artifacts: `release/mac-arm64/Ghost.app`, `release/Ghost-0.1.5-mac-arm64.dmg`, and
-`release/Ghost-0.1.5-mac-arm64.zip`. Screenshots include
-`artifacts/ghost-route-preview.png`, `artifacts/ghost-route-playback.png`, and
-`artifacts/ghost-route-compact.png`.
-
-Physical route playback was not tested. The running user's iPhone session was
-observed separately and was not a route test. These checks do not establish
-Windows USB behavior or how a particular phone app consumes mock location fixes.
-
-## v0.1.4 onboarding and interface checks
+## 0.2.0 (Windows x64)
 
 | Check | Result |
 | --- | --- |
-| `npm test` | 97 tests passed, 0 failed, 0 skipped. Includes onboarding preference validation for both host and phone platforms. |
-| Renderer production build | Passed with package version 0.1.4. |
-| `npm run test:renderer-session` | Passed with no device adapters and external requests blocked. Ten heartbeats over 9.15 seconds preserved the selected phone, pending target, enabled Update action, and focus; only explicit Update submitted the target. |
-| `npm run test:native` | Passed with isolated settings and no phone commands. The test completed first-run onboarding, verified all four tailored setup guides, exercised coordinates, saved-place CRUD, live search, settings, and the 960×680 layout. |
-| Visual review | First-run survey, setup checklist, map workspace, settings, destination, and compact-window screenshots were generated in `artifacts/`. Text remains legible over the map, and the interface uses neutral system styling with blue reserved for actions. |
-| macOS arm64 package | The v0.1.4 app bundle, DMG, and ZIP were built. The packaged smoke test confirmed both runtimes and the complete UI flow with isolated settings and no phone commands. Bundled iPhone, ADB, and Android helper resources match the validated source resources. |
-| Installer integrity | `hdiutil verify` accepted the DMG, `unzip -tq` found no ZIP errors, and SHA-256 values were written to `release/SHA256SUMS-0.1.4.txt`. |
+| Unit tests | 157 pass, including route planning and fallback, motion, saved routes and GPX. |
+| Renderer session | Passes in about 12 seconds after the test window was made visible. |
+| Native smoke, development and packaged | Passes; the packaged app discovered a connected iPhone and both runtimes reported available. |
+| Live routing | Valhalla routes plan in the real app; OSRM fallback is covered by tests. |
+| Realistic motion, simulated | A 20-mile Chicago drive took 28 minutes with a median of 6 mph over posted limits. A 2.4-mile downtown route averaged 7.4 stops of about 13 seconds over 50 runs. |
+| Installer | `Wraith-0.2.0-win-x64.exe` built with NSIS; the published asset's SHA-256 matches the local build. |
+| Real device | Set location, route playback and the after-arrival flow user-observed on an iPhone (iOS 27.0.1) over USB. |
 
-These checks verify the setup logic and interface. They do not replace the physical
-USB tests listed in `hardware-test-matrix.md`.
-
-The v0.1.4 macOS arm64 artifacts are `release/Ghost-0.1.4-mac-arm64.dmg`
-and `release/Ghost-0.1.4-mac-arm64.zip`.
-
-## v0.1.3 simulator and regression checks
-
-| Check | Result |
-| --- | --- |
-| `npm test` | 96 tests passed, 0 failed, 0 skipped at the time of the v0.1.3 build. |
-| Android 14 emulator helper integration | Passed on API 34 through the real Android adapter and bundled Appium Settings 8.0.9. Two targets were applied and read back, including an update; two health callbacks arrived; both services stopped; the temporary helper was uninstalled. A test-only seam bypassed the production emulator/USB filter, so this is not physical USB acceptance. |
-| Android Restore regression | Confirmed Android's status-255 `Service stopped` response is accepted only after `dumpsys` reports the service absent. |
-| iOS Simulator exclusion | A booted iOS 26.3 iPhone 17 Pro simulator was not returned by the real Ghost USB discovery sidecar, as designed. No location command was sent. |
-| Windows ADB resource | The actual pinned Google `adb.exe` PE header is now tested and accepted as Windows x86-compatible on Windows x64. The iPhone sidecar remains strict x64. |
-| Windows VM/nested simulator | Not run: this host has no Windows VM, ISO, or installer. Nested phone simulators cannot verify USB drivers, pairing/debug prompts, cable behavior, or physical-device location results. |
-| iOS refresh stress | Passed with 14 acknowledged DVT calls and 12 refresh callbacks; discovery overlapped and clear stopped the loop. The USB/DVT peer is controlled test code. |
-| Renderer production build | Passed with package version 0.1.3. |
-| `npm run test:renderer-session` | Passed with no device adapters and external requests blocked. Ten heartbeats over 9.37 seconds preserved the selected phone, pending target, enabled Update action, and focus; only explicit Update submitted the target. |
-| macOS arm64 package | DMG, ZIP, and app bundle built as 0.1.3. The packaged smoke test confirmed both runtimes, UI/IPC, six search results, saved-place CRUD, settings, and compact layout with isolated settings and no phone commands. |
-| Installer integrity | SHA-256 checks passed; `hdiutil verify` accepted the DMG and `unzip -tq` found no ZIP errors. |
-
-The v0.1.3 macOS arm64 artifacts are `release/Ghost-0.1.3-mac-arm64.dmg`
-and `release/Ghost-0.1.3-mac-arm64.zip`.
-
-## v0.1.2 software regression checks
-
-| Check | Result |
-| --- | --- |
-| `npm test` | 94 tests passed, 0 failed, 0 skipped. Includes 16 Python bridge cases plus Android/controller and iOS adapter regression coverage. |
-| iOS refresh stress | Passed through the real Node adapter, JSONL main loop, Python bridge, and pinned upstream location API with a fake USB/DVT peer. Ten acknowledgements kept the first target active beyond nine seconds; four acknowledged the replacement target; updates continued during a 6.25-second discovery probe; Restore stopped all later calls; no loss event occurred. |
-| Renderer production build | Passed with package version 0.1.2. |
-| Native resource validation | Passed for macOS arm64. The iPhone runtime's recorded bridge SHA-256 matches the current streaming source. |
-| `npm run test:renderer-session` | Passed with an isolated test bridge, no device adapters, and 382 external requests blocked. Ten state heartbeats over 9.17 seconds preserved the selected phone, unapplied target, enabled Update action, and focused controls. Recovery transitions passed; only explicit Update submitted the pending target. |
-| Recovery and target-update interface | Mocked waiting → reconnecting → active transitions, same-phone retry, iOS setup-required recovery, offline Restore, availability of Restore during pending recovery, and an explicit subsequent target update passed. A different ready USB phone now clears an old `unknown`, `waiting`, or `error` record, cancels retries, and resets the old transport without sending Restore; same-phone records and `active`, `applying`, `reconnecting`, or `stopping` sessions remain protected. |
-| Confirmation wording | iOS command acknowledgements and Android helper readbacks are identified separately; neither is presented as an independently verified phone-app GPS reading. |
-| macOS arm64 package | The v0.1.2 DMG, ZIP, and app bundle built successfully. A packaged-app smoke test used isolated settings, found no phones in that process, confirmed both bundled runtimes available, returned six live search results, and completed the native UI flow without Prepare, Set, or Restore. |
-| Installer checksums | DMG and ZIP SHA-256 verification passed; values are in `release/SHA256SUMS.txt`. |
-
-These software checks do not exercise a real USB transport. The historical
-packaging and physical-discovery observations below remain scoped to the initial
-0.1.0 build; they are not new physical Set/Update/Restore results for v0.1.2.
-
-The v0.1.2 macOS arm64 artifact names are
-`release/Ghost-0.1.2-mac-arm64.dmg` and `release/Ghost-0.1.2-mac-arm64.zip`.
-The bundle path remains `release/mac-arm64/Ghost.app`; generated checksums are
-written to `release/SHA256SUMS.txt`. Rebuilding these artifacts does not itself
-establish phone compatibility.
-
-## Initial v0.1.0 baseline — 2026-09-13
-
-Ghost 0.1.0 was built on macOS Apple Silicon with Node 24.18.0, Electron 44.3.0,
-pymobiledevice3 11.12.4, Appium Settings 8.0.9, and Android Platform Tools 37.0.1.
-
-| Check | Result |
-| --- | --- |
-| `npm test` | 51 tests passed, 0 failed, 0 skipped. Includes Python bridge checks. |
-| Renderer production build | Passed. |
-| Native resource validation | Both runtimes launch; architecture, APK/ADB integrity, and required notices pass. |
-| `npm run test:native` | Passed in isolated settings. |
-| Packaged `Ghost.app` native smoke | Passed in isolated settings; bundled iPhone and Android runtimes report available. |
-| Live Photon search | Six selectable results returned for Millennium Park Chicago. |
-| Native interface | Coordinates, saved-place create/rename/delete, setup tabs, preferences, and 960×680 window exercised; no renderer errors. |
-| USB discovery | One physical iPhone running iOS 26.6.1 discovered through the iOS USB adapter. |
-| macOS arm64 installers | DMG and ZIP produced successfully; local unsigned build. |
-| Windows x64 / macOS Intel | Native CI workflow defined; builds have not been run here. |
-| Physical Set / Update / Restore | Not exercised on any phone. No phone location commands were sent during these checks. |
-
-Screenshots from the initial packaged-app check were written to `artifacts/`.
-That check used the v0.1.0 installer; later builds may replace the bundle,
-screenshots, and checksum file at the shared output paths.
-
-The transport tests use controlled doubles. They check correct USB targeting,
-acknowledgement/error handling, cleanup, permission behavior, process termination,
-and persistent recovery. They do not establish that a particular phone app accepts
-simulated coordinates. Complete `hardware-test-matrix.md` before a public claim of
-verified support across all four host/phone combinations.
-
-## Publik publication check
-
-Ghost is published at [publikhq.com/ghost](https://publikhq.com/ghost), with approved Mac and Windows guides and a pinned 0.1.5 release. The listing, installation pages, and public Iris guide endpoint returned successfully. The direct-install button opens Publik’s existing sign-in gate for anonymous visitors. Public GitHub download endpoints respond successfully; all uploaded SHA-256 digests match the downloaded CI artifacts, and both DMG and ZIP integrity checks pass.
-
-Publik’s existing guide/assembler/submission test selection passed 152 tests. The Ghost renderer rehearsal passed fixed-location heartbeats and route planning/start/pause/resume with no phone adapters loaded. Published guide and listing inputs are preserved in `publik-guide.json` and `publik-listing.json`; retain the app-specific setup and route steps when preparing a later guide version.
-
-## 0.1.6 Wi-Fi implementation (2026-09-14)
-
-- 122 Node tests pass, including the wrapper that runs 21 Python bridge tests. USB remains the default. Wi-Fi tests cover exact iPhone identity and transport selection, no USB fallback, repeated refreshes, cleanup, Android pairing over stdin, separate pairing/connect ports, serial identity across port changes, address reuse rejection, and disconnected-session recovery.
-- iPhone and Android route controller tests pass over both connection modes: one update per second, 45 mph, stable session, exact arrival point and restoration.
-- Isolated Electron renderer rehearsal passes fixed-location heartbeats, route controls, connection mode controls, pairing/connect form dispatch, drafts surviving state updates and code clearing after submit. It loads no device adapters and blocks network requests.
-- macOS arm64 sidecar rebuilt from the changed bridge; frozen runtime protocol smoke, resource provenance checks, and the packaged 0.1.6 `Ghost.app` smoke pass. The packaged app exercises real Wi-Fi discovery IPC and switches back to USB using temporary settings. Both bundled runtimes report available. No phone location commands were sent.
-- **Physical Wi-Fi Set / route / Restore has not been tested.** Native GitHub CI for 0.1.6 passed on Windows x64, macOS arm64 and macOS x64. These checks establish implementation and local packaging behavior, not all four host/phone hardware combinations.
-- The local 0.1.6 bundle is in `release/mac-arm64/Ghost.app`. GitHub and Publik now publish 0.1.6; Publik guide v2 includes USB and Wi-Fi setup.
-
-
-### 0.1.6 release publication
-
-- Release source: `211ad6764081eeb2c1d18bbd9e8d996afa90f6fc`; [native build run](https://github.com/Blueturboguy07/ghost-location/actions/runs/34826878968) passed on all three targets.
-- The five CI-built installers were uploaded with `SHA256SUMS.txt`. Uploaded SHA-256 digests match the downloaded CI artifacts; both Mac DMGs and ZIPs pass integrity checks.
-- The actual CI-built Apple Silicon app passed isolated native UI, bundled-runtime, Wi-Fi discovery IPC, search and route planning checks without sending location commands to a phone.
-- [GitHub 0.1.6](https://github.com/Blueturboguy07/ghost-location/releases/tag/v0.1.6) is the latest release. Publik's approved release points to the same source and its v2 guide covers Wi-Fi on Mac and Windows. The GhostMe $12.95/month comparison is preserved.
-
-## 0.1.7 USB-to-Wi-Fi handoff (2026-09-14)
-
-- 133 Node tests pass, including the wrapper running 22 Python bridge tests. New coverage includes same-phone preflight, preserving the current point and route progress, stale USB events, failed Wi-Fi Set with USB recovery, failed recovery, journal failure, idle handoff, and Mac/Windows network detection.
-- Isolated Electron UI rehearsal passes: the Wi-Fi offer appears for an active USB session on host Wi-Fi, stays dismissed across heartbeats, and an active route can switch. Manual Android pairing drafts and code cleanup still pass.
-- The rebuilt macOS arm64 bundle in `release/local-017/mac-arm64/Ghost.app` passes native smoke checks with temporary settings, both bundled runtimes, read-only Wi-Fi discovery, live search/routing and no phone location commands. Actual host Wi-Fi detection also returns true.
-- Physical phone handoff remains unverified. The controller's recovery tests simulate transport failures; they do not establish continuity on a real phone during a transport change.
-
-### 0.1.7 release publication
-
-- Release source: `dd77694624c22fd91bc89c41ff91ee32af756e47`; [native build run](https://github.com/Blueturboguy07/ghost-location/actions/runs/34830210457) passed on Windows x64, macOS arm64 and macOS x64.
-- Windows exposed a pre-existing test that required four refresh calls within 40 ms. The tests now wait for observed refreshes with a two-second deadline, preserving the assertions without relying on host timer granularity. All 133 tests (including 22 Python bridge tests) pass across the native builds.
-- The actual CI Apple Silicon bundle also passes isolated native smoke checks. Both local Mac archives verify successfully. Physical Wi-Fi handoff remains unverified.
-- All five public installers and SHA256SUMS.txt match the CI files and return successful download responses. GitHub 0.1.7 is the latest release.
-- Publik's approved guide v3 pins the same source, and the live Mac/Windows install pages show 0.1.7 and Switch to Wi-Fi. The platform chooser links to both guides. Targeted cache invalidation refreshed only Ghost pages; the GhostMe $12.95/month comparison remains present.
+Earlier versions (0.1.x) were validated on macOS Apple Silicon and through GitHub Actions
+native builds; see the git history of this file for those records.

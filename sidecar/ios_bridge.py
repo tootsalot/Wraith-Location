@@ -59,7 +59,7 @@ async def usb_lockdown(udid, autopair=False):
 
 # A request chooses its transport explicitly. Child tunnel tasks inherit this
 # context, while concurrent discovery and refresh tasks keep their own context.
-CONNECTION = ContextVar("ghost_connection", default="usb")
+CONNECTION = ContextVar("wraith_connection", default="usb")
 
 
 async def connection_lockdown(udid, autopair=False):

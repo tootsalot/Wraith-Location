@@ -1,8 +1,8 @@
 # Third-party components
 
-Wraith is a modified version of Ghost (https://github.com/Blueturboguy07/ghost-location).
-The application code, Ghost's original code and Wraith's changes alike, is offered under
-GPL-3.0-or-later. See LICENSE.
+Wraith includes code from Ghost (https://github.com/Blueturboguy07/ghost-location), copyright its contributors, GPL-3.0-or-later; modified by Tootsalot, October 2026.
+
+The application code is offered under GPL-3.0-or-later. See LICENSE.
 Dependencies retain their own copyright and license terms. No code from iDescriptor,
 GeoPort, or LocationSimulator is copied into this application.
 

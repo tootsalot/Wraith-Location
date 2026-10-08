@@ -1,12 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const invoke = async (method, payload) => {
-  const response = await ipcRenderer.invoke(`ghost:${method}`, payload);
+  const response = await ipcRenderer.invoke(`wraith:${method}`, payload);
   if (!response.ok) throw new Error(response.error || 'The operation failed.');
   return response.data;
 };
 
-contextBridge.exposeInMainWorld('ghost', Object.freeze({
+contextBridge.exposeInMainWorld('wraith', Object.freeze({
   getState: () => invoke('getState'),
   switchToWifi: id => invoke('switchToWifi', id),
   setConnection: value => invoke('setConnection', value),
@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('ghost', Object.freeze({
   onState: callback => {
     if (typeof callback !== 'function') throw new Error('A callback is required.');
     const listener = (_event, state) => callback(state);
-    ipcRenderer.on('ghost:state', listener);
-    return () => ipcRenderer.removeListener('ghost:state', listener);
+    ipcRenderer.on('wraith:state', listener);
+    return () => ipcRenderer.removeListener('wraith:state', listener);
   }
 }));

@@ -21,7 +21,7 @@ test('run enforces a bounded timeout and rejects with a classified error', async
 });
 
 test('runner handles missing executables and bounded output', async () => {
-  await assert.rejects(run('ghost-definitely-missing-executable', []), error => error.code === 'ENOENT');
+  await assert.rejects(run('wraith-definitely-missing-executable', []), error => error.code === 'ENOENT');
   await assert.rejects(run(process.execPath, ['-e', 'process.stdout.write("x".repeat(10000))'], {maxOutputBytes: 100}), error => error.code === 'EOUTPUTLIMIT');
 });
 

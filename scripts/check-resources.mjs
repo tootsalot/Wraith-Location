@@ -79,8 +79,8 @@ export function validateResources({ root = projectRoot, platform = process.platf
     file(`resources/android/${name}`);
   }
   const iosDir = `resources/ios/${target}`;
-  const ios = executable(`${iosDir}/ghost-ios/${platform === 'win32' ? 'ghost-ios.exe' : 'ghost-ios'}`);
-  file(`${iosDir}/ghost-ios/_internal/base_library.zip`);
+  const ios = executable(`${iosDir}/wraith-ios/${platform === 'win32' ? 'wraith-ios.exe' : 'wraith-ios'}`);
+  file(`${iosDir}/wraith-ios/_internal/base_library.zip`);
   file(`${iosDir}/build-dependencies.txt`);
   const iosInfo = json(`${iosDir}/build-info.json`);
   const pinnedIos = file('sidecar/requirements.txt').toString('utf8').match(/^pymobiledevice3==([^\s]+)$/m)?.[1];
@@ -112,7 +112,7 @@ export async function beforePack(context) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const result = validateResources({ platform: process.env.GHOST_TARGET_PLATFORM || process.platform, arch: process.env.GHOST_TARGET_ARCH || process.arch });
+    const result = validateResources({ platform: process.env.WRAITH_TARGET_PLATFORM || process.platform, arch: process.env.WRAITH_TARGET_ARCH || process.arch });
     console.log(`Device runtimes, architecture, provenance and launch checks passed for ${result.target}.`);
   } catch (error) {
     console.error(`Cannot ship an incomplete app: ${error.message}\nRun npm run runtime:prepare on the matching target OS/architecture first.`);

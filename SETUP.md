@@ -4,13 +4,13 @@ Wraith runs on your computer and sends simulated locations to a phone over a USB
 
 ## Download and open
 
-Wraith does not publish prebuilt releases yet. Build it on the computer you will use, following [Build and run locally](README.md#build-and-run-locally). The build produces:
+On Windows, download `Wraith-0.2.1-win-x64.exe` from the [latest release](https://github.com/tootsalot/Wraith-Location/releases/latest). There is no prebuilt Mac download yet; build it on the Mac you will use, following [Build from source](README.md#build-from-source). A build produces:
 
-| Your computer | Build output |
+| Your computer | Installer |
 | --- | --- |
-| Mac with an Apple chip (M1 or newer) | `Wraith-0.2.0-mac-arm64.dmg` |
-| Mac with an Intel processor | `Wraith-0.2.0-mac-x64.dmg` |
-| Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.2.0-win-x64.exe` |
+| Mac with an Apple chip (M1 or newer) | `Wraith-0.2.1-mac-arm64.dmg` |
+| Mac with an Intel processor | `Wraith-0.2.1-mac-x64.dmg` |
+| Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.2.1-win-x64.exe` |
 
 On Mac, **Apple menu → About This Mac** identifies the chip. On Windows, look at **Settings → System → About → System type**. Windows ARM and Linux are not release targets. Native builds are checked on macOS 15 and Windows Server 2025; other OS versions have not been rehearsed.
 
@@ -105,7 +105,7 @@ Wraith has no account or telemetry. Device identifiers, saved places, and a reco
 
 Mac → iPhone has been used successfully on a physical phone. Windows → iPhone, Windows → Android, and Mac → Android have software/adapter coverage; they have **not all been verified with physical USB phones**. Native installer builds are separate from end-to-end phone compatibility. See [validation](docs/validation.md) and the [hardware test matrix](docs/hardware-test-matrix.md).
 
-For help, [open an issue](https://github.com/tootsalot/ghost-Toots/issues) with the Wraith version, computer OS/processor, phone OS, and exact error. Remove phone identifiers and private locations from logs and screenshots.
+For help, [open an issue](https://github.com/tootsalot/Wraith-Location/issues) with the Wraith version, computer OS/processor, phone OS, and exact error. Remove phone identifiers and private locations from logs and screenshots.
 
 ## Connect over the same Wi-Fi network (0.1.7)
 

@@ -1,13 +1,22 @@
 # Changelog
 
-## 0.2.0 (Wraith)
+## 0.2.1
+
+- Fix a main-process error dialog when switching between dark and light themes on Windows.
+- Use Windows' own caption buttons inside Wraith's title bar, replacing the separate native title bar.
+- Ignore map clicks while a route is running, so the hidden place pin no longer moves.
+- Stop packaging the source of libraries that are already bundled into the interface: the app archive drops from 24 MB to 1.5 MB.
+- Read the version shown in Settings from the build, and reserve title-bar space for window buttons only on macOS.
+- Rename the remaining internal identifiers and environment variables to Wraith (`WRAITH_*`), and move the project to tootsalot/Wraith-Location.
+
+## 0.2.0
 
 - Redesign the interface (Spectral): dark and light themes that follow the system, with a choice in Settings; a focused side panel; the phone in a title-bar menu; saved places and routes in a Library; and a playback bar showing speed, speed limit, traffic lights ahead, time left and Restore.
 - Fix Set location being disabled for phones connected over Wi-Fi.
 - Fix map overlays drawing over the phone menu and search results, and the selected pin covering route stop markers.
 - Repaint less: icons are re-scanned only when new ones render, and closed dialogs no longer re-render every second.
 - Make the renderer test reliable by showing its window, so screenshots no longer hang.
-- Rename the fork to Wraith, with a new icon and app identity. On first launch a packaged Wraith copies saved places, setup choices and saved routes from an existing Ghost installation.
+- Rename the app to Wraith, with a new icon and app identity.
 - Make traffic-light stops less frequent and shorter: about one red in four, usually 5–15 seconds, fewer reds just after stopping, and one light per junction.
 - Unlock route planning, saved routes and Fixed location after a route arrives. The phone keeps holding the destination, and **New route from here** starts the next route at the current point.
 - Add Drive, Bike and Walk modes with a per-mode top-speed slider that can change while a route runs.
@@ -70,7 +79,7 @@
   record when a different usable USB phone is discovered, allowing the new phone
   to be prepared and have a location set without manual journal cleanup.
 - Cancel pending retries and reset the old adapter transport when that record is
-  discarded. Ghost does not send Restore to the absent old phone, which may retain
+  discarded. Wraith does not send Restore to the absent old phone, which may retain
   its simulated location until it is restarted or restored separately.
 - Keep `active`, `applying`, `reconnecting`, and `stopping` sessions protected from
   automatic replacement.
@@ -79,7 +88,7 @@
 
 - Reassert the fixed iPhone location on a one-second loop with awaited DVT command acknowledgements; show acknowledgement time and count without claiming a phone-app GPS measurement.
 - Preserve a healthy iPhone connection during discovery polling while fresh acknowledgements continue. Android's helper emits timestamped fixes every two seconds; desktop status identifies helper readback separately.
-- Recover the same device and applied target after USB replug within the same running Ghost process. Allow same-phone retry and target updates after a connection failure; application restart still requires manual Retry or Restore.
+- Recover the same device and applied target after USB replug within the same running Wraith process. Allow same-phone retry and target updates after a connection failure; application restart still requires manual Retry or Restore.
 - Make Restore cancel automatic reconnection, including while offline or recovery is pending, and preserve focused controls during state updates.
 
 These are implementation changes validated with software checks and controlled

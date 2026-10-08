@@ -31,8 +31,8 @@ jobs:
             platform: darwin
             arch: x64
     env:
-      GHOST_TARGET_PLATFORM: ${{ matrix.platform }}
-      GHOST_TARGET_ARCH: ${{ matrix.arch }}
+      WRAITH_TARGET_PLATFORM: ${{ matrix.platform }}
+      WRAITH_TARGET_ARCH: ${{ matrix.arch }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - name: Check out source
@@ -53,13 +53,13 @@ jobs:
           python-version: '3.12.10'
           architecture: ${{ matrix.arch }}
       - name: Verify native runtime architecture
-        run: node -e "if(process.platform!==process.env.GHOST_TARGET_PLATFORM || process.arch!==process.env.GHOST_TARGET_ARCH) throw new Error('Build host architecture does not match target')"
+        run: node -e "if(process.platform!==process.env.WRAITH_TARGET_PLATFORM || process.arch!==process.env.WRAITH_TARGET_ARCH) throw new Error('Build host architecture does not match target')"
       - name: Install locked npm dependencies
         run: npm ci
       - name: Prepare bundled phone runtimes
         run: npm run runtime:prepare
         env:
-          GHOST_BUILD_PYTHON: ${{ steps.python.outputs.python-path }}
+          WRAITH_BUILD_PYTHON: ${{ steps.python.outputs.python-path }}
       - name: Test adapters and sidecar
         run: npm test
       - name: Build unsigned installers without publishing
@@ -87,5 +87,5 @@ jobs:
             resources/android/provenance.json
             resources/ios/**/build-info.json
             resources/ios/**/build-dependencies.txt
-            sidecar/build/**/warn-ghost-ios.txt
+            sidecar/build/**/warn-wraith-ios.txt
             release/builder-effective-config.yaml

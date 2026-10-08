@@ -9,7 +9,7 @@ import { normalizeRoute } from '../backend/routing.mjs';
 
 const start = Date.parse('2026-09-01T10:00:00Z');
 const trackXml = (points, extra = '') => `<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Lake &amp; Loop</name><trkseg>${points.map(([lat, lon, t]) => `<trkpt lon='${lon}' lat="${lat}">${t == null ? '' : `<time>${new Date(start + t * 1000).toISOString()}</time>`}</trkpt>`).join('')}</trkseg></trk>${extra}</gpx>`;
-const tempDir = async t => { const dir = await mkdtemp(path.join(tmpdir(), 'ghost-routes-')); t.after(() => rm(dir, { recursive: true, force: true })); return dir; };
+const tempDir = async t => { const dir = await mkdtemp(path.join(tmpdir(), 'wraith-routes-')); t.after(() => rm(dir, { recursive: true, force: true })); return dir; };
 
 test('GPX tracks import as exact paths with recorded speeds', () => {
   // About 11.1 m per point, one point every second: 40 km/h.

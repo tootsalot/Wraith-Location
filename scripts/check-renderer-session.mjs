@@ -14,8 +14,8 @@ await access(path.join(dist, 'index.html')).catch(() => {
   throw new Error('Build the renderer first, or run npm run test:renderer-session.');
 });
 
-const userData = await mkdtemp(path.join(tmpdir(), 'ghost-renderer-session-'));
-const env = { ...process.env, GHOST_RENDERER_TEST_DATA: userData, GHOST_RENDERER_DIST: dist };
+const userData = await mkdtemp(path.join(tmpdir(), 'wraith-renderer-session-'));
+const env = { ...process.env, WRAITH_RENDERER_TEST_DATA: userData, WRAITH_RENDERER_DIST: dist };
 delete env.ELECTRON_RUN_AS_NODE;
 let application;
 const deadline = setTimeout(() => {
@@ -39,15 +39,15 @@ try {
 
   const actualData = await application.evaluate(({ app }) => app.getPath('userData'));
   assert.equal(await realpath(actualData), await realpath(userData), 'The test must use isolated settings.');
-  assert.equal(await application.evaluate(() => globalThis.ghostRendererFixture?.mode), 'no-phone-no-network');
+  assert.equal(await application.evaluate(() => globalThis.wraithRendererFixture?.mode), 'no-phone-no-network');
 
-  const initial = await page.evaluate(() => window.ghost.getState());
+  const initial = await page.evaluate(() => window.wraith.getState());
   const phone = initial.devices[0];
   const target = { latitude: 35.6762, longitude: 139.6503 };
   await page.locator('#latitude').fill(String(target.latitude));
   await page.locator('#longitude').fill(String(target.longitude));
   await page.getByRole('button', { name: 'Select these coordinates', exact: true }).click();
-  assert.deepEqual(await page.evaluate(() => window.ghostFixture.getCalls()), [], 'Choosing a pin must not apply it.');
+  assert.deepEqual(await page.evaluate(() => window.wraithFixture.getCalls()), [], 'Choosing a pin must not apply it.');
 
   // Keep the select focused while real-time events pass the original five-second
   // failure boundary. Node identity catches menus being rebuilt on each event.
@@ -62,8 +62,8 @@ try {
   for (let heartbeat = 1; heartbeat <= 10; heartbeat += 1) {
     await delay(900);
     await page.evaluate(async count => {
-      const current = await window.ghost.getState();
-      await window.ghostFixture.setState({
+      const current = await window.wraith.getState();
+      await window.wraithFixture.setState({
         busy: false,
         session: { ...current.session, status: 'active', refreshCount: count, lastRefreshAt: new Date().toISOString() },
       });
@@ -84,49 +84,49 @@ try {
   const elapsedMs = Math.round(performance.now() - started);
   assert.ok(elapsedMs >= 8000, 'The check must span more than eight seconds.');
   assert.equal(primaryColors.size, 1, 'The active Update button changed color across heartbeats.');
-  assert.deepEqual(await page.evaluate(() => window.ghostFixture.getCalls()), [], 'A heartbeat applied the preview target.');
+  assert.deepEqual(await page.evaluate(() => window.wraithFixture.getCalls()), [], 'A heartbeat applied the preview target.');
   await originalNodes.dispose();
 
   // Settings drafts must survive the same event stream without losing focus.
   await page.locator('#settings-button').click();
   await page.locator('#provider-url').fill('https://example.invalid/unfinished-draft');
   await page.evaluate(async () => {
-    const current = await window.ghost.getState();
-    await window.ghostFixture.setState({ session: { ...current.session, refreshCount: 11 } });
+    const current = await window.wraith.getState();
+    await window.wraithFixture.setState({ session: { ...current.session, refreshCount: 11 } });
   });
   assert.equal(await page.locator('#provider-url').inputValue(), 'https://example.invalid/unfinished-draft');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'provider-url');
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
 
   await page.evaluate(async () => {
-    const current = await window.ghost.getState();
-    await window.ghostFixture.setState({ devices: [], session: { ...current.session, status: 'waiting', autoReconnect: true } });
+    const current = await window.wraith.getState();
+    await window.wraithFixture.setState({ devices: [], session: { ...current.session, status: 'waiting', autoReconnect: true } });
   });
   assert.match(await page.locator('#session-status').textContent(), /Waiting for your phone/);
   assert.equal(await page.locator('#apply-button').isDisabled(), true);
   assert.equal(await page.locator('#restore-button').isEnabled(), true, 'Offline Restore must remain available.');
 
   await page.evaluate(async device => {
-    const current = await window.ghost.getState();
-    await window.ghostFixture.setState({ devices: [device], busy: true, session: { ...current.session, status: 'reconnecting' } });
+    const current = await window.wraith.getState();
+    await window.wraithFixture.setState({ devices: [device], busy: true, session: { ...current.session, status: 'reconnecting' } });
   }, phone);
   assert.match(await page.locator('#session-status').textContent(), /Reconnecting to your phone/);
   assert.equal(await page.locator('#apply-button').isDisabled(), true);
   assert.equal(await page.locator('#restore-button').isEnabled(), true, 'Restore must be available during automatic recovery.');
 
   await page.evaluate(async () => {
-    const current = await window.ghost.getState();
-    await window.ghostFixture.setState({ busy: false, session: { ...current.session, status: 'active' } });
+    const current = await window.wraith.getState();
+    await window.wraithFixture.setState({ busy: false, session: { ...current.session, status: 'active' } });
   });
   assert.equal(await page.locator('#apply-button').isEnabled(), true, 'Recovery left Update disabled.');
   assert.equal(await page.locator('#device-select').inputValue(), phone.id);
   assert.equal(await page.locator('#latitude').inputValue(), target.latitude.toFixed(6));
   assert.equal(await page.locator('#longitude').inputValue(), target.longitude.toFixed(6));
-  assert.deepEqual(await page.evaluate(() => window.ghostFixture.getCalls()), [], 'Recovery applied the uncommitted preview pin.');
+  assert.deepEqual(await page.evaluate(() => window.wraithFixture.getCalls()), [], 'Recovery applied the uncommitted preview pin.');
 
   await page.getByRole('button', { name: 'Update location', exact: true }).click();
   await page.waitForFunction(() => !document.querySelector('#apply-button').disabled);
-  assert.deepEqual(await page.evaluate(() => window.ghostFixture.getCalls()), [{
+  assert.deepEqual(await page.evaluate(() => window.wraithFixture.getCalls()), [{
     method: 'applyLocation', deviceId: phone.id, ...target, label: 'Custom coordinates',
   }], 'Explicit Update must send exactly the selected target to the same phone.');
   assert.match(await page.locator('#session-refresh').textContent(), /Last command acknowledged.*Updates acknowledged/);
@@ -142,57 +142,57 @@ try {
   assert.equal(await page.locator('#route-stops li').count(), 2);
   await page.locator('#plan-route').click();
   await page.waitForFunction(() => !document.querySelector('#route-play').disabled);
-  assert.equal((await page.evaluate(() => window.ghostFixture.getCalls())).filter(c => c.method === 'applyLocation').length, 1, 'Planning a route cannot send a location.');
+  assert.equal((await page.evaluate(() => window.wraithFixture.getCalls())).filter(c => c.method === 'applyLocation').length, 1, 'Planning a route cannot send a location.');
   assert.equal(await page.locator('.route-stop-marker').count(), 2);
   await page.locator('#route-play').click();
   await page.waitForFunction(() => document.querySelector('#route-play').textContent === 'Pause route');
   assert.equal(await page.locator('.route-location-dot').count(), 1);
   const beforeDot = await page.locator('.route-location-dot').getAttribute('d');
   await page.evaluate(async () => {
-    const current = await window.ghost.getState();
-    await window.ghostFixture.setState({route: {...current.route, traveledMeters: 600, remainingSeconds: 40, point: {latitude: 41.889, longitude: -87.6233}}});
+    const current = await window.wraith.getState();
+    await window.wraithFixture.setState({route: {...current.route, traveledMeters: 600, remainingSeconds: 40, point: {latitude: 41.889, longitude: -87.6233}}});
   });
   assert.notEqual(await page.locator('.route-location-dot').getAttribute('d'), beforeDot, 'The route dot must follow backend positions.');
   await page.locator('#route-play').click();
   await page.waitForFunction(() => document.querySelector('#route-play').textContent.includes('Resume route'));
   await page.locator('#route-play').click();
   await page.waitForFunction(() => document.querySelector('#route-play').textContent === 'Pause route');
-  const routeCalls = (await page.evaluate(() => window.ghostFixture.getCalls())).filter(c => c.method !== 'applyLocation');
+  const routeCalls = (await page.evaluate(() => window.wraithFixture.getCalls())).filter(c => c.method !== 'applyLocation');
   assert.deepEqual(routeCalls.map(c => c.method), ['planRoute', 'startRoute', 'pauseRoute', 'resumeRoute']);
   assert.equal(routeCalls[1].deviceId, phone.id);
   assert.equal(routeCalls[1].routeId, 'test-route');
   const artifacts = path.join(root, 'artifacts'); await mkdir(artifacts, {recursive: true});
   await page.waitForTimeout(1000);
-  await page.screenshot({path: path.join(artifacts, 'ghost-route-playback.png')});
+  await page.screenshot({path: path.join(artifacts, 'wraith-route-playback.png')});
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 680));
   await page.locator('#route-play').scrollIntoViewIfNeeded();
-  await page.screenshot({path: path.join(artifacts, 'ghost-route-compact.png')});
+  await page.screenshot({path: path.join(artifacts, 'wraith-route-compact.png')});
   console.log('PASS: route stop selection, planning without device mutation, start/pause/resume, moving dot, and compact controls.');
   // Pairing drafts must survive state pushes, and secrets disappear on submit.
   await openConnections();
   assert.equal(await page.locator('[data-connection="wifi"]').isEnabled(), true, 'A working USB route can switch to Wi-Fi.');
   await page.getByRole('button', {name: 'Close connection settings'}).click();
   assert.equal(await page.locator('#wifi-prompt').isVisible(), false);
-  await page.evaluate(() => window.ghostFixture.setState({network: {wifi: true}}));
+  await page.evaluate(() => window.wraithFixture.setState({network: {wifi: true}}));
   assert.equal(await page.locator('#wifi-prompt').isVisible(), true);
   await page.locator('#wifi-prompt-dismiss').click();
-  await page.evaluate(() => window.ghostFixture.setState({network: {wifi: true}}));
+  await page.evaluate(() => window.wraithFixture.setState({network: {wifi: true}}));
   assert.equal(await page.locator('#wifi-prompt').isVisible(), false, 'Dismissed prompts stay dismissed across heartbeats.');
   await openConnections();
   await page.locator('#switch-to-wifi').click();
   await page.waitForFunction(() => !document.querySelector('#wifi-dialog').open);
-  const handedOff = await page.evaluate(() => window.ghost.getState());
+  const handedOff = await page.evaluate(() => window.wraith.getState());
   assert.equal(handedOff.session.connection, 'wifi'); assert.equal(handedOff.route.status, 'running');
-  assert.deepEqual((await page.evaluate(() => window.ghostFixture.getCalls())).filter(c => c.method === 'switchToWifi'), [{method: 'switchToWifi', deviceId: phone.id}]);
+  assert.deepEqual((await page.evaluate(() => window.wraithFixture.getCalls())).filter(c => c.method === 'switchToWifi'), [{method: 'switchToWifi', deviceId: phone.id}]);
   await openConnections();
-  await page.evaluate(async () => { const s = await window.ghost.getState(); await window.ghostFixture.setState({preferences: {...s.preferences, connection: 'usb'}}); });
-  await page.evaluate(() => window.ghostFixture.setState({session: null, route: null, devices: []}));
+  await page.evaluate(async () => { const s = await window.wraith.getState(); await window.wraithFixture.setState({preferences: {...s.preferences, connection: 'usb'}}); });
+  await page.evaluate(() => window.wraithFixture.setState({session: null, route: null, devices: []}));
   await page.locator('[data-connection="wifi"]').click();
   await page.locator('#wifi-manual').evaluate(el => { el.open = true; });
   await page.locator('#wifi-phone').selectOption('android');
   await page.locator('#wifi-pair-address').fill('192.168.1.20:37123');
   await page.locator('#wifi-pair-code').fill('123456');
-  await page.evaluate(() => window.ghostFixture.setState({warning: null}));
+  await page.evaluate(() => window.wraithFixture.setState({warning: null}));
   assert.equal(await page.locator('#wifi-pair-code').inputValue(), '123456');
   assert.equal(await page.locator('#wifi-pair-address').inputValue(), '192.168.1.20:37123');
   await page.locator('#wifi-pair-button').click();
@@ -200,21 +200,21 @@ try {
   await page.locator('#wifi-connect-address').fill('192.168.1.20:40567');
   await page.locator('#wifi-connect-button').click();
   await page.waitForFunction(() => !document.querySelector('#wifi-connect-button').disabled);
-  const wifiCalls = (await page.evaluate(() => window.ghostFixture.getCalls())).filter(call => ['setConnection', 'connectWifi'].includes(call.method));
+  const wifiCalls = (await page.evaluate(() => window.wraithFixture.getCalls())).filter(call => ['setConnection', 'connectWifi'].includes(call.method));
   assert.deepEqual(wifiCalls, [
     {method: 'setConnection', connection: 'wifi'},
     {method: 'connectWifi', platform: 'android', endpoint: '192.168.1.20:37123', code: '123456'},
     {method: 'connectWifi', platform: 'android', endpoint: '192.168.1.20:40567'},
   ]);
   await page.locator('#wifi-title').scrollIntoViewIfNeeded();
-  await page.screenshot({path: path.join(artifacts, 'ghost-wifi-android.png')});
+  await page.screenshot({path: path.join(artifacts, 'wraith-wifi-android.png')});
   await page.locator('#wifi-phone').selectOption('ios');
-  await page.screenshot({path: path.join(artifacts, 'ghost-wifi-iphone.png')});
+  await page.screenshot({path: path.join(artifacts, 'wraith-wifi-iphone.png')});
   await page.getByRole('button', {name: 'Close connection settings', exact: true}).click();
   assert.match(await page.locator('#connection-options').textContent(), /Wi-Fi/);
   console.log('PASS: Wi-Fi prompt, dismissal, active-route handoff, separate Android pairing/connect ports, persistent drafts and pairing-code cleanup.');
   assert.deepEqual(rendererErrors, [], 'The renderer raised an error.');
-  const blockedRequests = await application.evaluate(() => globalThis.ghostRendererFixture.blockedRequests);
+  const blockedRequests = await application.evaluate(() => globalThis.wraithRendererFixture.blockedRequests);
   assert.ok(blockedRequests > 0, 'The fixture did not demonstrate that external map requests were blocked.');
 
   console.log(`PASS: 10 heartbeats over ${elapsedMs} ms; active Update color/control, device, pending pin and focus preserved; waiting → reconnecting → active; only explicit Update applied the new target.`);

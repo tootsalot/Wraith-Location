@@ -44,7 +44,7 @@ const unexpected = method => async () => {
   throw new Error(`Unexpected fixture call: ${method}`);
 };
 
-contextBridge.exposeInMainWorld('ghost', {
+contextBridge.exposeInMainWorld('wraith', {
   getState: async () => snapshot(),
   setConnection: async connection => { calls.push({method: 'setConnection', connection}); state.preferences.connection = connection; return publish(); },
   switchToWifi: async deviceId => { calls.push({method: 'switchToWifi', deviceId}); state.preferences.connection = 'wifi'; state.devices = state.devices.map(d => ({...d, connection: 'wifi'})); if (state.session) state.session.connection = 'wifi'; return publish(); },
@@ -89,7 +89,7 @@ contextBridge.exposeInMainWorld('ghost', {
   installRuntime: unexpected('installRuntime'),
 });
 
-contextBridge.exposeInMainWorld('ghostFixture', {
+contextBridge.exposeInMainWorld('wraithFixture', {
   setState: async patch => {
     state = { ...state, ...patch };
     return publish();

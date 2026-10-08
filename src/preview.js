@@ -12,7 +12,7 @@ export function createPreviewBridge() {
       android: { available: false, message: 'Open the desktop app to check Android tools.' },
     },
     session: null,
-    savedPlaces: read('ghost.preview.places', []),
+    savedPlaces: read('wraith.preview.places', []),
     recentPlaces: [],
     preferences: {
       restoreOnQuit: true,
@@ -25,7 +25,7 @@ export function createPreviewBridge() {
       realisticMotion: true,
       routeSpeeds: { drive: 70, bike: 14, walk: 3.2 },
       dismissedWifiPrompts: [],
-      ...read('ghost.preview.preferences', {}),
+      ...read('wraith.preview.preferences', {}),
     },
     busy: false,
   };
@@ -58,17 +58,17 @@ export function createPreviewBridge() {
     savePlace: async (place) => {
       const saved = { ...place, id: place.id || crypto.randomUUID() };
       state.savedPlaces = [saved, ...state.savedPlaces.filter((p) => p.id !== saved.id)];
-      localStorage.setItem('ghost.preview.places', JSON.stringify(state.savedPlaces));
+      localStorage.setItem('wraith.preview.places', JSON.stringify(state.savedPlaces));
       return publish();
     },
     deletePlace: async (id) => {
       state.savedPlaces = state.savedPlaces.filter((p) => p.id !== id);
-      localStorage.setItem('ghost.preview.places', JSON.stringify(state.savedPlaces));
+      localStorage.setItem('wraith.preview.places', JSON.stringify(state.savedPlaces));
       return publish();
     },
     updatePreferences: async (preferences) => {
       state.preferences = { ...state.preferences, ...preferences };
-      localStorage.setItem('ghost.preview.preferences', JSON.stringify(state.preferences));
+      localStorage.setItem('wraith.preview.preferences', JSON.stringify(state.preferences));
       return publish();
     },
     onState: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },

@@ -310,7 +310,7 @@ test('an unverified service start remains tracked for cleanup and is not reporte
 });
 
 test('prepare installs only the selected helper and grants only location permissions', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'ghost-android-test-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'wraith-android-test-'));
   try {
     await mkdir(path.join(root, 'resources', 'android'), {recursive: true});
     await writeFile(path.join(root, 'resources', 'android', 'settings.apk'), 'test-only');

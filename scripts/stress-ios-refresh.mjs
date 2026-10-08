@@ -17,7 +17,7 @@ const sidecar = path.join(root, 'sidecar');
 const python = path.join(sidecar, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 if (!existsSync(python)) throw new Error('Build the local Python runtime first: npm run runtime:ios');
 const reportPath = path.join(root, 'artifacts', 'ios-refresh-stress-report.json');
-const scratch = await mkdtemp(path.join(os.tmpdir(), 'ghost-ios-stress-'));
+const scratch = await mkdtemp(path.join(os.tmpdir(), 'wraith-ios-stress-'));
 const fakePath = path.join(scratch, 'fake_ios_peer.py');
 const fakePeer = String.raw`"""Hardware-free stress seam: real Bridge/main/LocationSimulation, fake USB/DVT peer."""
 import asyncio

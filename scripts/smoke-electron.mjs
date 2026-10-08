@@ -11,16 +11,16 @@ import assert from 'node:assert/strict';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.join(root, 'artifacts');
 await mkdir(output, { recursive: true });
-const userData = await mkdtemp(path.join(tmpdir(), 'ghost-smoke-'));
-const env = { ...process.env, GHOST_TEST_DATA: userData };
+const userData = await mkdtemp(path.join(tmpdir(), 'wraith-smoke-'));
+const env = { ...process.env, WRAITH_TEST_DATA: userData };
 delete env.ELECTRON_RUN_AS_NODE;
-const executablePath = process.env.GHOST_SMOKE_EXECUTABLE || electronPath;
-const args = [...(process.env.GHOST_SMOKE_EXECUTABLE ? [] : [root]), `--user-data-dir=${userData}`];
+const executablePath = process.env.WRAITH_SMOKE_EXECUTABLE || electronPath;
+const args = [...(process.env.WRAITH_SMOKE_EXECUTABLE ? [] : [root]), `--user-data-dir=${userData}`];
 const application = await _electron.launch({ executablePath, args, cwd: root, env, timeout: 30000 });
 const rendererErrors = [];
 async function pollState(page, predicate) {
   for (let attempt = 0; attempt < 60; attempt++) {
-    const state = await page.evaluate(() => window.ghost.getState());
+    const state = await page.evaluate(() => window.wraith.getState());
     if (predicate(state)) return state;
     await new Promise(resolve => setTimeout(resolve, 500));
   }
@@ -37,16 +37,16 @@ try {
   assert.equal(initial.session, null);
   console.log(`Native bridge ready. USB phones found: ${initial.devices.length}.`);
   console.log(`iPhone runtime: ${initial.runtime.ios.available}; Android runtime: ${initial.runtime.android.available}.`);
-  if (process.env.GHOST_SMOKE_EXECUTABLE) {
+  if (process.env.WRAITH_SMOKE_EXECUTABLE) {
     assert.equal(initial.runtime.ios.available, true, initial.runtime.ios.message);
     assert.equal(initial.runtime.android.available, true, initial.runtime.android.message);
   }
 
-  assert.equal(await page.evaluate(() => typeof window.ghost.connectWifi), 'function');
-  await page.evaluate(() => window.ghost.setConnection('wifi'));
+  assert.equal(await page.evaluate(() => typeof window.wraith.connectWifi), 'function');
+  await page.evaluate(() => window.wraith.setConnection('wifi'));
   await pollState(page, s => !s.busy && s.preferences.connection === 'wifi');
-  assert.equal((await page.evaluate(() => window.ghost.getState())).session, null);
-  await page.evaluate(() => window.ghost.setConnection('usb'));
+  assert.equal((await page.evaluate(() => window.wraith.getState())).session, null);
+  await page.evaluate(() => window.wraith.setConnection('usb'));
   await pollState(page, s => !s.busy && s.preferences.connection === 'usb');
   console.log('Wi-Fi discovery IPC and return to USB passed without phone mutation.');
 
@@ -66,11 +66,11 @@ try {
   await page.locator('[data-survey-host="mac"]').click();
   await page.locator('[data-survey-phone="ios"]').click();
   await page.waitForTimeout(250);
-  await page.screenshot({ path: path.join(output, 'ghost-onboarding.png') });
+  await page.screenshot({ path: path.join(output, 'wraith-onboarding.png') });
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   assert.match(await page.locator('#onboarding-content').textContent(), /Developer Mode/);
   await page.waitForTimeout(250);
-  await page.screenshot({ path: path.join(output, 'ghost-onboarding-guide.png') });
+  await page.screenshot({ path: path.join(output, 'wraith-onboarding-guide.png') });
   await page.getByRole('button', { name: 'Continue to map', exact: true }).click();
   await page.locator('#onboarding-dialog').waitFor({ state: 'hidden' });
   await pollState(page, s => s.preferences.onboardingComplete === true && s.preferences.hostPlatform === 'mac' && s.preferences.phonePlatform === 'ios');
@@ -87,7 +87,7 @@ try {
     await chooseSetup(host, phone, expected);
   }
   await page.waitForFunction(() => document.querySelector('.leaflet-tile-loaded'), null, { timeout: 15000 }).catch(() => console.log('Map tiles unavailable; continuing with coordinates.'));
-  await page.screenshot({ path: path.join(output, 'ghost-desktop.png') });
+  await page.screenshot({ path: path.join(output, 'wraith-desktop.png') });
   await page.locator('#latitude').fill('41.8827');
   await page.locator('#longitude').fill('-87.6233');
   await page.getByRole('button', { name: 'Select these coordinates', exact: true }).click();
@@ -114,18 +114,18 @@ try {
   } else console.log(`Search error displayed: ${await page.locator('.search-error').textContent()}`);
   await page.waitForTimeout(1100); // Let the map's 800 ms camera animation finish.
   if (await page.locator('#toast').isVisible()) await page.locator('#toast-close').click();
-  await page.screenshot({ path: path.join(output, 'ghost-destination.png') });
+  await page.screenshot({ path: path.join(output, 'wraith-destination.png') });
   await page.locator('#help-button').click();
   assert.match(await page.locator('#setup-content').textContent(), /Developer Mode/);
   await page.waitForTimeout(250);
-  await page.screenshot({ path: path.join(output, 'ghost-setup.png') });
+  await page.screenshot({ path: path.join(output, 'wraith-setup.png') });
   await page.getByRole('button', { name: 'Close setup guide', exact: true }).click();
   await page.locator('#settings-button').click();
   await page.locator('#restore-preference').uncheck();
   await pollState(page, s => s.preferences.restoreOnQuit === false);
   await page.locator('#restore-preference').check();
   await pollState(page, s => s.preferences.restoreOnQuit === true);
-  await page.screenshot({ path: path.join(output, 'ghost-settings.png') });
+  await page.screenshot({ path: path.join(output, 'wraith-settings.png') });
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   await page.locator('[data-location-mode="route"]').click();
   for (const [latitude, longitude] of [[41.8827, -87.6233], [41.8917, -87.6078]]) {
@@ -136,21 +136,21 @@ try {
   }
   await page.locator('#plan-route').click();
   await page.locator('#route-summary').waitFor({timeout: 25000});
-  const planned = await page.evaluate(() => window.ghost.getRoute());
+  const planned = await page.evaluate(() => window.wraith.getRoute());
   assert.ok(planned.coordinates.length > 2, 'A real road route should contain road geometry.');
   assert.equal(planned.mode, 'drive');
   assert.ok(['valhalla', 'osrm'].includes(planned.provider));
   await page.waitForTimeout(1100);
-  await page.screenshot({path: path.join(output, 'ghost-route-preview.png')});
+  await page.screenshot({path: path.join(output, 'wraith-route-preview.png')});
   console.log(`Live ${planned.provider} road route: ${planned.coordinates.length} points, ${Math.round(planned.distanceMeters)} metres. No route started.`);
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 680));
-  await page.screenshot({ path: path.join(output, 'ghost-compact.png') });
-  const final = await page.evaluate(() => window.ghost.getState());
+  await page.screenshot({ path: path.join(output, 'wraith-compact.png') });
+  const final = await page.evaluate(() => window.wraith.getState());
   assert.equal(final.session, null);
   assert.deepEqual(rendererErrors, []);
   console.log('PASS: native UI, coordinates, saved-place CRUD, search response, setup, preferences, compact window. No phone location commands.');
 } catch (error) {
-  await application.windows()[0]?.screenshot({ path: path.join(output, 'ghost-smoke-failure.png') }).catch(() => {});
+  await application.windows()[0]?.screenshot({ path: path.join(output, 'wraith-smoke-failure.png') }).catch(() => {});
   throw error;
 } finally {
   await application.close();

@@ -17,7 +17,7 @@ function run(command, args, extra = {}) {
   if (result.status !== 0) throw new Error(`${path.basename(command)} failed with exit ${result.status}`);
 }
 if (!existsSync(python)) {
-  const bootstrap = process.env.GHOST_BUILD_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+  const bootstrap = process.env.WRAITH_BUILD_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
   run(bootstrap, ['-m', 'venv', venv]);
 }
 if (!process.argv.includes('--skip-install')) {
@@ -31,7 +31,7 @@ const dist = path.join(root, 'resources', 'ios', target);
 const work = path.join(root, 'sidecar', 'build', target);
 mkdirSync(work, { recursive: true });
 // Confine PyInstaller's build cache to the project too.
-run(python, ['-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--name', 'ghost-ios',
+run(python, ['-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--name', 'wraith-ios',
   '--distpath', dist, '--workpath', work, '--specpath', work,
   '--recursive-copy-metadata', 'pymobiledevice3', '--collect-data', 'pymobiledevice3',
   '--collect-data', 'developer_disk_image', '--collect-data', 'pytun_pmd3',
@@ -39,7 +39,7 @@ run(python, ['-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--name'
   '--hidden-import', 'pymobiledevice3.osu.win_util',
   'sidecar/ios_bridge.py'],
   { env: { ...process.env, PYINSTALLER_CONFIG_DIR: path.join(root, 'sidecar', 'build', 'cache') } });
-const executable = path.join(dist, 'ghost-ios', process.platform === 'win32' ? 'ghost-ios.exe' : 'ghost-ios');
+const executable = path.join(dist, 'wraith-ios', process.platform === 'win32' ? 'wraith-ios.exe' : 'wraith-ios');
 // Import + protocol smoke test, deliberately no USB discovery or device commands.
 const smoke = spawnSync(executable, [], { encoding: 'utf8', timeout: 30000,
   input: '{"id":1,"method":"status","params":{}}\n{"id":2,"method":"shutdown","params":{}}\n' });

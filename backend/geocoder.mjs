@@ -24,7 +24,7 @@ export class Geocoder {
       let response;
       try {
         response = await this.fetch(url, {
-          headers: { 'User-Agent': 'Wraith/0.2 (+https://github.com/tootsalot/ghost-Toots)', Accept: 'application/json' },
+          headers: { 'User-Agent': 'Wraith/0.2 (+https://github.com/tootsalot/Wraith-Location)', Accept: 'application/json' },
           signal: AbortSignal.timeout(12000)
         });
       } catch { throw new Error('Place search is unavailable. Check your connection, or choose a pin on the map.'); }

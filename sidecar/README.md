@@ -11,13 +11,13 @@ Use Python 3.12 on a native Windows x64, macOS Intel, or macOS Apple Silicon hos
 
 ```sh
 # Optional when python3 / python is not the intended interpreter:
-GHOST_BUILD_PYTHON=/path/to/python3.12 node scripts/build-ios-sidecar.mjs
+WRAITH_BUILD_PYTHON=/path/to/python3.12 node scripts/build-ios-sidecar.mjs
 ```
 
-PowerShell: set `$env:GHOST_BUILD_PYTHON = 'C:\path\python.exe'` before running
+PowerShell: set `$env:WRAITH_BUILD_PYTHON = 'C:\path\python.exe'` before running
 `node scripts/build-ios-sidecar.mjs`. The script creates `sidecar/.venv`, installs
 the pinned runtime/build requirements, and builds a standalone PyInstaller folder
-under `resources/ios/<platform>-<arch>/ghost-ios/`. It performs an import/protocol
+under `resources/ios/<platform>-<arch>/wraith-ios/`. It performs an import/protocol
 smoke check without discovering or changing a phone. Subsequent offline rebuilds
 can use `--skip-install`. Each build records its resolved dependency versions.
 Build on every target OS/architecture; PyInstaller does not cross-compile here.

@@ -5,7 +5,7 @@ import { MODES, CONSTANT_SPEED_MPH, estimateSeconds } from './motion.mjs';
 
 export { distanceBetween, measurePath, pointAlong } from './geo.mjs';
 export const ROUTE_SPEED_MPS = CONSTANT_SPEED_MPH * MPS_PER_MPH;
-export const USER_AGENT = 'Wraith/0.2.0 (+https://github.com/tootsalot/ghost-Toots)';
+export const USER_AGENT = 'Wraith/0.2.1 (+https://github.com/tootsalot/Wraith-Location)';
 
 const VALHALLA_URL = 'https://valhalla1.openstreetmap.de';
 const VALHALLA_COSTING = { drive: 'auto', bike: 'bicycle', walk: 'pedestrian' };

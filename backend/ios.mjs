@@ -28,13 +28,13 @@ export class IosAdapter {
   }
 
   runtime() {
-    const executable = process.platform === 'win32' ? 'ghost-ios.exe' : 'ghost-ios';
-    const bundled = path.join(this.resourcesPath, 'ios', `${process.platform}-${process.arch}`, 'ghost-ios', executable);
+    const executable = process.platform === 'win32' ? 'wraith-ios.exe' : 'wraith-ios';
+    const bundled = path.join(this.resourcesPath, 'ios', `${process.platform}-${process.arch}`, 'wraith-ios', executable);
     if (existsSync(bundled)) return { command: bundled, args: [] };
     const python = path.join(this.rootPath, 'sidecar', '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
     const script = path.join(this.rootPath, 'sidecar', 'ios_bridge.py');
     if (existsSync(python) && existsSync(script)) return { command: python, args: ['-u', script] };
-    if (this.runner !== spawn) return { command: 'ghost-ios-test', args: [] };
+    if (this.runner !== spawn) return { command: 'wraith-ios-test', args: [] };
     throw new Error('iPhone support is not installed. Build the bundled iOS sidecar with npm run runtime:ios.');
   }
 

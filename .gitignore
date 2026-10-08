@@ -2,7 +2,7 @@ node_modules/
 dist/
 release/
 release-*/
-.ghost-dev/
+.wraith-dev/
 .venv/
 .cache/
 .DS_Store

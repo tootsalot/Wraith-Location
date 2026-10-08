@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker, nativeTheme } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { existsSync, constants } from 'node:fs';
-import { readFile, writeFile, stat, mkdir, copyFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import { Store } from '../backend/store.mjs';
 import { RouteLibrary } from '../backend/library.mjs';
 import { MAX_GPX_BYTES } from '../backend/gpx.mjs';
@@ -14,10 +14,10 @@ import { run } from '../backend/process.mjs';
 import { wifiStatus } from '../backend/network.mjs';
 
 const rootPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const devUrl = !app.isPackaged && process.env.GHOST_DEV_URL === 'http://127.0.0.1:5173' ? process.env.GHOST_DEV_URL : null;
-if (!app.isPackaged) app.setPath('userData', process.env.GHOST_TEST_DATA || path.join(rootPath, '.ghost-dev'));
+const devUrl = !app.isPackaged && process.env.WRAITH_DEV_URL === 'http://127.0.0.1:5173' ? process.env.WRAITH_DEV_URL : null;
+if (!app.isPackaged) app.setPath('userData', process.env.WRAITH_TEST_DATA || path.join(rootPath, '.wraith-dev'));
 app.setName('Wraith');
-protocol.registerSchemesAsPrivileged([{ scheme: 'ghost', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: 'wraith', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 let window, controller, poll, wakeLock, quitting = false, quitPending = false;
 // Window chrome colours match the renderer's Spectral theme tokens.
@@ -30,11 +30,21 @@ function syncTheme(preference) {
   const source = ['dark', 'light'].includes(preference) ? preference : 'system';
   if (nativeTheme.themeSource !== source) nativeTheme.themeSource = source;
 }
+// Windows draws its caption buttons over the page only with titleBarStyle 'hidden';
+// 'hiddenInset' is macOS-only and left Windows with a native title bar and no overlay.
+const windowChrome = () => process.platform === 'darwin'
+  ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 18 } }
+  : process.platform === 'win32'
+    ? { titleBarStyle: 'hidden', titleBarOverlay: { color: chrome().color, symbolColor: chrome().symbolColor, height: TITLEBAR_HEIGHT } }
+    : {};
 nativeTheme.on('updated', () => {
   if (!window || window.isDestroyed()) return;
   const colors = chrome();
   window.setBackgroundColor(colors.background);
-  if (process.platform === 'win32') window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_HEIGHT });
+  // A theme change must never crash the main process, even if the overlay is unavailable.
+  if (process.platform === 'win32') {
+    try { window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_HEIGHT }); } catch {}
+  }
 });
 const geocoder = new Geocoder();
 const allowedExternal = new Set(['github.com', 'developer.android.com', 'developer.apple.com', 'support.apple.com', 'www.openstreetmap.org', 'openstreetmap.org', 'photon.komoot.io', 'doronz88.github.io']);
@@ -44,22 +54,9 @@ else {
   app.whenReady().then(boot).catch(error => { dialog.showErrorBox('Wraith could not start', error.message); app.exit(1); });
 }
 
-// Wraith is a fork of Ghost. On first launch, copy Ghost's saved places, setup
-// choices and saved routes (never overwriting) so nothing has to be set up again.
-async function migrateFromGhost() {
-  const userData = app.getPath('userData'), legacy = path.join(app.getPath('appData'), 'Ghost');
-  // Only the default profile migrates; test runs with their own --user-data-dir stay isolated.
-  if (!app.isPackaged || userData !== path.join(app.getPath('appData'), 'Wraith') || existsSync(path.join(userData, 'settings.json'))) return;
-  await mkdir(userData, { recursive: true });
-  for (const file of ['settings.json', 'routes.json']) {
-    await copyFile(path.join(legacy, file), path.join(userData, file), constants.COPYFILE_EXCL).catch(() => {});
-  }
-}
-
 async function boot() {
   const dist = path.join(rootPath, 'dist');
-  await migrateFromGhost();
-  protocol.handle('ghost', request => {
+  protocol.handle('wraith', request => {
     const url = new URL(request.url);
     if (url.hostname !== 'app') return new Response('Not found', { status: 404 });
     let pathname;
@@ -84,7 +81,7 @@ async function boot() {
     if (active && wakeLock == null) wakeLock = powerSaveBlocker.start('prevent-app-suspension');
     if (!active && wakeLock != null) { powerSaveBlocker.stop(wakeLock); wakeLock = null; }
     syncTheme(state.preferences.theme);
-    if (window && !window.isDestroyed()) window.webContents.send('ghost:state', state);
+    if (window && !window.isDestroyed()) window.webContents.send('wraith:state', state);
   });
   // Read settings before the window exists, so its first frame and first state
   // use real preferences (placeholder preferences used to reopen first-run setup).
@@ -138,10 +135,10 @@ async function boot() {
       return controller.scan();
     })
   };
-  for (const [method, handler] of Object.entries(handlers)) ipcMain.handle(`ghost:${method}`, async (event, value) => {
+  for (const [method, handler] of Object.entries(handlers)) ipcMain.handle(`wraith:${method}`, async (event, value) => {
     const senderUrl = event.senderFrame?.url || '';
     const trusted = window && event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame &&
-      (devUrl ? new URL(senderUrl).origin === devUrl : senderUrl.startsWith('ghost://app/'));
+      (devUrl ? new URL(senderUrl).origin === devUrl : senderUrl.startsWith('wraith://app/'));
     if (!trusted) return { ok: false, error: 'Untrusted request.' };
     try { return { ok: true, data: await handler(value) }; }
     catch (error) { return { ok: false, error: error.message || 'Operation failed.' }; }
@@ -149,8 +146,7 @@ async function boot() {
 
   window = new BrowserWindow({
     width: 1440, height: 940, minWidth: 960, minHeight: 680, backgroundColor: chrome().background, show: false,
-    title: 'Wraith', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 18 },
-    ...(process.platform === 'win32' ? { titleBarOverlay: { color: chrome().color, symbolColor: chrome().symbolColor, height: TITLEBAR_HEIGHT } } : {}),
+    title: 'Wraith', ...windowChrome(),
     webPreferences: { preload: path.join(rootPath, 'electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true }
   });
   window.webContents.setUserAgent(`${window.webContents.getUserAgent()} Wraith/${app.getVersion()}`);
@@ -172,7 +168,7 @@ async function boot() {
   ]));
   // Device discovery must not hold the window hostage.
   if (devUrl) await window.loadURL(devUrl);
-  else if (existsSync(path.join(dist, 'index.html'))) await window.loadURL('ghost://app/index.html');
+  else if (existsSync(path.join(dist, 'index.html'))) await window.loadURL('wraith://app/index.html');
   else throw new Error('Build the interface first with npm run build.');
   await controller.init();
   poll = setInterval(() => controller.scanDevices().catch(error => { controller.state.warning = error.message; controller.notify(); }), 2000);

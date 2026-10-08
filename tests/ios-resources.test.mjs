@@ -36,7 +36,7 @@ test('official Windows x86 ADB is allowed on x64 without weakening the iOS sidec
 });
 
 test('an empty iOS resource directory cannot pass packaging checks; modified APK also fails', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'ghost-resources-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'wraith-resources-'));
   const put = (name, value) => {
     const output = path.join(root, name); mkdirSync(path.dirname(output), { recursive: true });
     writeFileSync(output, value, { mode: 0o755 });
@@ -54,7 +54,7 @@ test('an empty iOS resource directory cannot pass packaging checks; modified APK
     json('package.json', { devDependencies: { 'io.appium.settings': '8.0.9' } });
     mkdirSync(path.join(root, 'resources/ios/darwin-arm64'), { recursive: true });
     const options = { root, platform: 'darwin', arch: 'arm64', smoke: false };
-    assert.throws(() => validateResources(options), /Missing resource:.*ghost-ios/);
+    assert.throws(() => validateResources(options), /Missing resource:.*wraith-ios/);
     put('resources/android/settings.apk', Buffer.from('PKtampered'));
     assert.throws(() => validateResources(options), /checksum/);
   } finally { rmSync(root, { recursive: true, force: true }); }

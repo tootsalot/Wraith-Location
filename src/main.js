@@ -11,12 +11,15 @@ import {
 import { createPreviewBridge } from './preview.js';
 import { measurePath } from '../backend/geo.mjs';
 import { MODES, clampSpeedMph, estimateSeconds } from '../backend/motion.mjs';
+import { version } from '../package.json';
 
-const isPreview = !window.ghost;
+const isPreview = !window.wraith;
 const detectedHost = /Windows/i.test(navigator.userAgent) ? 'windows' : 'mac';
 document.documentElement.classList.toggle('host-windows', detectedHost === 'windows');
+// Only macOS draws window buttons inside the title bar area.
+document.documentElement.classList.toggle('host-mac', /Macintosh|Mac OS X/i.test(navigator.userAgent));
 document.documentElement.classList.toggle('desktop-app', !isPreview);
-const api = window.ghost || createPreviewBridge();
+const api = window.wraith || createPreviewBridge();
 const dismissedWifi = new Set();
 const icons = { MapPin, Bookmark, Settings2, HelpCircle, ArrowUpRight, ArrowRight, Search, Plus, Minus, Crosshair, Smartphone, RefreshCw, ChevronDown, X, Check, Circle, Download, Pencil, Trash2, RotateCcw, LoaderCircle, Cable, Laptop, Monitor, ChevronLeft, Car, Bike, Footprints, GripVertical, Upload, Navigation, Pause, Play, Library, Wifi };
 const modeIcons = { drive: 'car', bike: 'bike', walk: 'footprints' };
@@ -248,7 +251,7 @@ $('#app').innerHTML = `
     <div class="settings-group"><h3>Device setup</h3><div class="configuration-row"><div><strong id="settings-configuration">No setup selected</strong><small>Wraith uses this to show the right connection steps.</small></div><button id="rerun-onboarding" class="secondary-button compact">Change</button></div></div>
     <div class="settings-group"><h3>Location sessions</h3><label class="setting-row"><span><strong>Restore on quit</strong><small>Wraith tries to stop location simulation before it closes. Keep the phone connected.</small></span><input id="restore-preference" type="checkbox" class="switch" /></label></div>
     <div class="settings-group"><h3>Device tools</h3><div id="runtime-status"></div><button id="install-runtime" class="secondary-button">${icon('download')} Prepare device tools</button><p class="settings-note">First-time preparation may need an internet connection.</p></div>
-    <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form><div class="settings-footer">Wraith 0.2.0, based on Ghost. Free and open source under GPL-3.0.</div>
+    <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form><div class="settings-footer">Wraith ${version}. Free and open source under GPL-3.0.</div>
   </dialog>
 
   <dialog id="save-dialog" class="small-dialog" aria-labelledby="save-title"><div class="sheet-heading"><div><span class="eyebrow">Saved place</span><h2 id="save-title">Save this place</h2></div><button class="icon-button" data-close="save-dialog" aria-label="Close save place">${icon('x')}</button></div><form id="save-form"><label class="field-label" for="place-name">Name</label><input id="place-name" class="text-input" maxlength="120" required placeholder="Place name" /><input id="place-id" type="hidden" /><p id="save-coordinates" class="settings-note"></p><button class="primary-button" type="submit"><span>Save place</span>${icon('bookmark')}</button></form></dialog>
@@ -802,7 +805,11 @@ function openSave(place = selectedPlace) {
 map.on('click', (event) => {
   const point = event.latlng.wrap();
   // In Route mode a click adds the next stop; elsewhere it moves the preview pin.
-  if (locationMode === 'route' && !routeLocked()) { addRouteStop({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' }); return; }
+  if (locationMode === 'route') {
+    // While a route owns the phone, the map is for watching; clicks change nothing.
+    if (!routeLocked()) addRouteStop({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' });
+    return;
+  }
   selectPlace({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' }, false);
 });
 map.on('moveend', () => { const center = map.getCenter().wrap(); $('#map-coordinates').textContent = `${formatCoordinate(center.lat)}, ${formatCoordinate(center.lng, false)}`; });
