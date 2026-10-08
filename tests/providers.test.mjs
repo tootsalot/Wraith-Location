@@ -17,7 +17,10 @@ const photonPlace = { features: [{ geometry: { coordinates: [-87.6, 41.9] }, pro
 async function setup(t, { fetchImpl, now = () => DAY, ...options } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'wraith-providers-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const calls = [];
-  const fetcher = async (url, init) => { calls.push(new URL(url)); return fetchImpl(new URL(url), init); };
+  const fetcher = async (url, init) => {
+    assert.ok(!String(url).includes(KEY), 'The key must never appear in a request URL.');
+    calls.push(new URL(url)); return fetchImpl(new URL(url), init);
+  };
   const providers = new Providers({ path: path.join(dir, 'providers.json'), secure, fetchImpl: fetcher, now, ...options });
   await providers.load();
   return { dir, file: path.join(dir, 'providers.json'), providers, calls, fetcher };
@@ -35,7 +38,7 @@ test('without a key, search uses Photon and pins keep their placeholder name', a
 });
 
 test('a key is tested before saving, encrypted on disk and never exposed in status', async t => {
-  const { file, providers, calls } = await setup(t, { fetchImpl: async url => url.searchParams.get('apiKey') === KEY ? json({ results: [geoapifyPlace] }) : json({ statusCode: 401, message: 'Invalid apiKey' }, 401) });
+  const { file, providers, calls } = await setup(t, { fetchImpl: async (url, init) => init.headers['x-api-key'] === KEY ? json({ results: [geoapifyPlace] }) : json({ statusCode: 401, message: 'Invalid apiKey' }, 401) });
   await assert.rejects(providers.setGeoapifyKey('not a key'), /doesn’t look like/);
   await assert.rejects(providers.setGeoapifyKey('ffffffffffffffffffffffffffffffff'), /didn’t accept this key/);
   assert.equal(providers.status().geoapify.configured, false);

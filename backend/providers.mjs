@@ -137,10 +137,10 @@ export class Providers extends EventEmitter {
     if (!test && !this.geoapifyActive()) throw new ProviderError('Geoapify is paused for today.', { reason: 'paused' });
     const url = new URL(path, GEOAPIFY_URL);
     for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
-    url.searchParams.set('apiKey', key);
     let response;
     try {
-      response = await this.fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }, signal: AbortSignal.timeout(test ? 15000 : 8000) });
+      // The key goes in a header, as Geoapify advises for server-side clients, so it never appears in a URL.
+      response = await this.fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'x-api-key': key }, signal: AbortSignal.timeout(test ? 15000 : 8000) });
     } catch {
       throw new ProviderError(test ? 'Couldn’t reach Geoapify to check the key. Check your connection and try again.' : 'Geoapify is unavailable.');
     }
