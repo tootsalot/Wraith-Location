@@ -8,11 +8,13 @@ import {run} from '../backend/process.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
-// Pinned official archive metadata from Google's repository2-1.xml, 2026-09-13.
+// Pinned official archive metadata from Google's repository2-1.xml, 2026-09-13 (Linux added 2026-10-08).
 // Google publishes SHA-1 here; also record SHA-256 for every artifact we package.
 const TOOLS = {
   darwin: {file: 'platform-tools_r37.0.1-darwin.zip', sha1: '6ae73f4de6452dc57e62ec02b68eed92a4c21661', size: 16110554},
   win32: {file: 'platform-tools_r37.0.1-win.zip', sha1: 'e03e78b1d80b396f1c3358e31251cb31740e1110', size: 8044989},
+  // Google publishes Linux platform-tools for x86-64 only; its adb needs just glibc.
+  linux: {file: 'platform-tools_r37.0.1-linux.zip', sha1: '477254aa5f903c15cf51001717bdf347fb6b53e0', size: 9054187},
 };
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const option = (name, fallback) => {
@@ -49,8 +51,8 @@ async function prepareApk() {
 
 async function prepareAdb(platform, arch) {
   const archive = TOOLS[platform];
-  if (!archive || !['x64', 'arm64'].includes(arch) || (platform === 'win32' && arch !== 'x64')) {
-    throw new Error('Supported ADB package targets: darwin-arm64, darwin-x64 and win32-x64.');
+  if (!archive || !['x64', 'arm64'].includes(arch) || (platform !== 'darwin' && arch !== 'x64')) {
+    throw new Error('Supported ADB package targets: darwin-arm64, darwin-x64, win32-x64 and linux-x64.');
   }
   const url = `https://dl.google.com/android/repository/${archive.file}`;
   const temp = await mkdtemp(path.join(tmpdir(), 'wraith-android-'));

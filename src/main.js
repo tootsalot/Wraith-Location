@@ -14,10 +14,14 @@ import { MODES, clampSpeedMph, estimateSeconds } from '../backend/motion.mjs';
 import { version } from '../package.json';
 
 const isPreview = !window.wraith;
-const detectedHost = /Windows/i.test(navigator.userAgent) ? 'windows' : 'mac';
+// The desktop app reports its real platform; the browser preview falls back to the user agent.
+const detectedHost = { darwin: 'mac', win32: 'windows', linux: 'linux' }[window.wraith?.platform]
+  || (/Windows/i.test(navigator.userAgent) ? 'windows' : /Macintosh|Mac OS X/i.test(navigator.userAgent) ? 'mac' : /Linux|X11/i.test(navigator.userAgent) ? 'linux' : 'mac');
+const hostName = { mac: 'Mac', windows: 'Windows PC', linux: 'Linux computer' }[detectedHost];
 document.documentElement.classList.toggle('host-windows', detectedHost === 'windows');
+document.documentElement.classList.toggle('host-linux', detectedHost === 'linux');
 // Only macOS draws window buttons inside the title bar area.
-document.documentElement.classList.toggle('host-mac', /Macintosh|Mac OS X/i.test(navigator.userAgent));
+document.documentElement.classList.toggle('host-mac', detectedHost === 'mac');
 document.documentElement.classList.toggle('desktop-app', !isPreview);
 const api = window.wraith || createPreviewBridge();
 const dismissedWifi = new Set();
@@ -87,6 +91,26 @@ const setupGuides = {
       ['Prepare the location helper', 'In Wraith, select the phone and choose Prepare. If Android asks for a mock location app, choose Appium Settings.'],
     ],
   },
+  'linux:ios': {
+    title: 'Linux and iPhone',
+    intro: 'Install Apple’s USB service, then trust and prepare the iPhone.',
+    steps: [
+      ['Install usbmuxd', 'Wraith reaches the iPhone through usbmuxd. On Ubuntu or Debian run sudo apt install usbmuxd; other distributions use the same package name.'],
+      ['Connect and trust', 'Unlock your iPhone, connect it with a USB data cable, then tap Trust on the iPhone if prompted.'],
+      ['Turn on Developer Mode', 'On iPhone, open Settings → Privacy & Security → Developer Mode. Turn it on, restart, then confirm with your passcode.'],
+      ['Prepare in Wraith', 'Select the iPhone and choose Prepare. Keep the computer online during the first preparation. No administrator password is needed.'],
+    ],
+  },
+  'linux:android': {
+    title: 'Linux and Android',
+    intro: 'Allow USB access, then enable and authorize debugging.',
+    steps: [
+      ['Allow USB access', 'On Ubuntu or Debian run sudo apt install android-sdk-platform-tools-common to add Android’s USB rules, then reconnect the phone.'],
+      ['Unlock Developer options', 'On Android, open Settings → About phone and tap Build number seven times. Enter your screen lock if asked.'],
+      ['Enable and authorize debugging', 'Turn on USB debugging in Developer options, keep the phone unlocked, and accept the Allow USB debugging prompt for this computer.'],
+      ['Prepare the location helper', 'In Wraith, select the phone and choose Prepare. If Android asks for a mock location app, choose Appium Settings.'],
+    ],
+  },
 };
 
 let state = { devices: [], savedPlaces: [], recentPlaces: [], runtime: {}, session: null, preferences: {}, busy: false };
@@ -104,9 +128,7 @@ let preferencesApplied = false, lastRouteId = null, lastLocked = false, draggedS
 let planPath = null, estimateCache = null, tickCache = null;
 let autoOnboarding = false;
 let routeBeingNamed = null;
-let setupHost = detectedHost;
 let setupPlatform = 'ios';
-let surveyHost = detectedHost;
 let surveyPhone = null;
 let onboardingStep = 'survey';
 let onboardingShown = false;
@@ -122,7 +144,7 @@ $('#app').innerHTML = `
     <div class="window-inset" aria-hidden="true"></div>
     <a class="wordmark" href="#" aria-label="Wraith map"><span class="rail-emblem">${brandMark}</span><span>Wraith</span></a>
     <div class="search-wrapper">
-      <form id="search-form" role="search" class="search-box">${icon('search')}<input id="search-input" placeholder="Search places or coordinates" autocomplete="off" aria-label="Search places or coordinates" /><kbd id="search-key">${detectedHost === 'windows' ? 'Ctrl K' : '⌘K'}</kbd><button id="search-submit" type="submit" aria-label="Search">${icon('arrow-right')}</button></form>
+      <form id="search-form" role="search" class="search-box">${icon('search')}<input id="search-input" placeholder="Search places or coordinates" autocomplete="off" aria-label="Search places or coordinates" /><kbd id="search-key">${detectedHost === 'mac' ? '⌘K' : 'Ctrl K'}</kbd><button id="search-submit" type="submit" aria-label="Search">${icon('arrow-right')}</button></form>
       <div id="search-results" class="search-results" hidden></div>
     </div>
     <div class="titlebar-right">
@@ -322,7 +344,7 @@ async function nameSelectedPlace() {
   return result;
 }
 
-function guideFor(host = setupHost, phone = setupPlatform) { return setupGuides[`${host}:${phone}`]; }
+function guideFor(host = detectedHost, phone = setupPlatform) { return setupGuides[`${host}:${phone}`]; }
 function platformName(platform) { return platform === 'ios' ? 'iPhone' : 'Android'; }
 
 // Explicit Dark/Light overrides the system; the main process mirrors the choice for window chrome.
@@ -366,7 +388,6 @@ function acceptState(next) {
   // Stop markers become draggable again when a route arrives or is restored.
   if (routeLocked() !== lastLocked) { lastLocked = routeLocked(); drawRoute(); }
   if (!state.devices.some((device) => device.id === selectedDeviceId)) selectedDeviceId = state.devices.find((device) => device.id === state.session?.deviceId)?.id || state.devices[0]?.id || state.session?.deviceId || null;
-  setupHost = state.preferences.hostPlatform || setupHost || detectedHost;
   setupPlatform = state.preferences.phonePlatform || state.devices.find((device) => device.id === selectedDeviceId)?.platform || setupPlatform;
   render();
   // Restore the preview pin for a fixed session; a route's moving point is not a place to keep.
@@ -793,7 +814,7 @@ function renderRuntime() {
     if (document.activeElement !== input) input.checked = notifications[input.dataset.notify] !== false;
     if (input.dataset.notify !== 'enabled') input.disabled = notifications.enabled === false;
   });
-  const selectedGuide = state.preferences.hostPlatform && state.preferences.phonePlatform ? guideFor(state.preferences.hostPlatform, state.preferences.phonePlatform) : null;
+  const selectedGuide = state.preferences.phonePlatform ? guideFor(detectedHost, state.preferences.phonePlatform) : null;
   $('#settings-configuration').textContent = selectedGuide?.title || 'No setup selected';
   renderKeys();
 }
@@ -834,20 +855,19 @@ function renderSetup() {
 function renderOnboarding() {
   $('#onboarding-progress').textContent = onboardingStep === 'survey' ? '1 of 2' : '2 of 2';
   if (onboardingStep === 'survey') {
-    setContent('#onboarding-content', `<div class="onboarding-copy"><h1 id="onboarding-title">Let’s set up your devices.</h1><p>Choose your computer and phone, and Wraith will show the USB setup for that pair. For wireless setup, choose Connection, then Wi-Fi, from the phone menu.</p></div><div class="survey-group"><h2>This computer</h2><div class="choice-grid"><button class="choice-card" data-survey-host="mac" aria-pressed="${surveyHost === 'mac'}">${icon('laptop')}<span><strong>Mac</strong><small>macOS</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-host="windows" aria-pressed="${surveyHost === 'windows'}">${icon('monitor')}<span><strong>Windows PC</strong><small>Windows 10 or 11</small></span>${icon('check', 'choice-check')}</button></div></div><div class="survey-group"><h2>Your phone</h2><div class="choice-grid"><button class="choice-card" data-survey-phone="ios" aria-pressed="${surveyPhone === 'ios'}">${icon('smartphone')}<span><strong>iPhone</strong><small>iOS 17.4 or later</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-phone="android" aria-pressed="${surveyPhone === 'android'}">${icon('smartphone')}<span><strong>Android</strong><small>Android 8 or later</small></span>${icon('check', 'choice-check')}</button></div></div><div class="onboarding-actions"><span>Your choices stay on this computer.</span><button id="onboarding-next" class="primary-button inline" ${!surveyHost || !surveyPhone ? 'disabled' : ''}><span>Continue</span>${icon('arrow-right')}</button></div>`);
-    document.querySelectorAll('[data-survey-host]').forEach((button) => { button.onclick = () => { surveyHost = button.dataset.surveyHost; renderOnboarding(); paintIcons(); }; });
+    setContent('#onboarding-content', `<div class="onboarding-copy"><h1 id="onboarding-title">Which phone are you setting up?</h1><p>Wraith will show the USB setup for this ${hostName}. For wireless setup later, choose Connection, then Wi-Fi, from the phone menu.</p></div><div class="survey-group"><h2>Your phone</h2><div class="choice-grid"><button class="choice-card" data-survey-phone="ios" aria-pressed="${surveyPhone === 'ios'}">${icon('smartphone')}<span><strong>iPhone</strong><small>iOS 17.4 or later</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-phone="android" aria-pressed="${surveyPhone === 'android'}">${icon('smartphone')}<span><strong>Android</strong><small>Android 8 or later</small></span>${icon('check', 'choice-check')}</button></div></div><div class="onboarding-actions"><span>Your choice stays on this computer.</span><button id="onboarding-next" class="primary-button inline" ${!surveyPhone ? 'disabled' : ''}><span>Continue</span>${icon('arrow-right')}</button></div>`);
     document.querySelectorAll('[data-survey-phone]').forEach((button) => { button.onclick = () => { surveyPhone = button.dataset.surveyPhone; renderOnboarding(); paintIcons(); }; });
-    $('#onboarding-next').onclick = () => { if (surveyHost && surveyPhone) { onboardingStep = 'guide'; onboardingChecks.clear(); renderOnboarding(); paintIcons(); } };
+    $('#onboarding-next').onclick = () => { if (surveyPhone) { onboardingStep = 'guide'; onboardingChecks.clear(); renderOnboarding(); paintIcons(); } };
   } else {
-    const guide = guideFor(surveyHost, surveyPhone);
+    const guide = guideFor(detectedHost, surveyPhone);
     const matching = state.devices.filter((device) => device.platform === surveyPhone && device.state !== 'offline');
     setContent('#onboarding-content', `<button id="onboarding-back" class="back-button">${icon('chevron-left')} Back</button><div class="onboarding-copy guide-copy"><span class="configuration-pill">${guide.title}</span><h1 id="onboarding-title">Prepare your ${platformName(surveyPhone)}.</h1><p>${guide.intro} Tick each step as you finish it.</p></div><div class="onboarding-checklist">${guide.steps.map(([title, body], index) => `<label class="checklist-row"><input type="checkbox" data-onboarding-check="${index}" ${onboardingChecks.has(index) ? 'checked' : ''}/><span class="check-control">${icon('check')}</span><span><strong>${title}</strong><small>${body}</small></span></label>`).join('')}</div><div id="onboarding-detection" class="onboarding-detection ${matching.length ? 'connected' : ''}">${matching.length ? `${icon('check')} ${platformName(surveyPhone)} detected over USB.` : `${icon('cable')} ${isPreview ? 'USB detection is available in the desktop app.' : 'Connect your phone when you’re ready.'}`}</div><div class="onboarding-actions"><button id="onboarding-scan" class="secondary-button" ${pending || state.busy ? 'disabled' : ''}>${icon(pending ? 'loader-circle' : 'refresh-cw', pending ? 'spin' : '')} Check connection</button><button id="onboarding-finish" class="primary-button inline" ${pending ? 'disabled' : ''}><span>Continue to map</span>${icon('arrow-right')}</button></div>`);
     $('#onboarding-back').onclick = () => { onboardingStep = 'survey'; renderOnboarding(); paintIcons(); };
     document.querySelectorAll('[data-onboarding-check]').forEach((checkbox) => { checkbox.onchange = () => { const index = Number(checkbox.dataset.onboardingCheck); if (checkbox.checked) onboardingChecks.add(index); else onboardingChecks.delete(index); }; });
     $('#onboarding-scan').onclick = async () => { const result = await runOperation(() => api.scanDevices()); if (result && !result.devices.some((device) => device.platform === surveyPhone && device.state !== 'offline')) $('#onboarding-detection').innerHTML = `${icon('help-circle')} No ${platformName(surveyPhone)} found. Check the cable, unlock the phone, and accept its prompt.`; paintIcons(true); };
     $('#onboarding-finish').onclick = async () => {
-      const result = await runOperation(() => api.updatePreferences({ onboardingComplete: true, hostPlatform: surveyHost, phonePlatform: surveyPhone }));
-      if (result) { setupHost = surveyHost; setupPlatform = surveyPhone; $('#onboarding-dialog').close(); }
+      const result = await runOperation(() => api.updatePreferences({ onboardingComplete: true, hostPlatform: detectedHost, phonePlatform: surveyPhone }));
+      if (result) { setupPlatform = surveyPhone; $('#onboarding-dialog').close(); }
     };
   }
 }
@@ -900,7 +920,6 @@ function render() {
 }
 
 function openOnboarding() {
-  surveyHost = state.preferences.hostPlatform || detectedHost;
   surveyPhone = state.preferences.phonePlatform || state.devices[0]?.platform || null;
   onboardingStep = 'survey';
   onboardingChecks.clear();
@@ -913,8 +932,7 @@ function openOnboarding() {
 function openSetup() {
   closePhonePopover();
   if (state.preferences.connection === 'wifi') { openConnections(); return; }
-  if (!state.preferences.hostPlatform || !state.preferences.phonePlatform) { openOnboarding(); return; }
-  setupHost = state.preferences.hostPlatform;
+  if (!state.preferences.phonePlatform) { openOnboarding(); return; }
   setupPlatform = state.preferences.phonePlatform;
   renderSetup();
   paintIcons();

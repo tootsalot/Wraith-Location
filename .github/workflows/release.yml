@@ -1,0 +1,84 @@
+name: Release
+
+# Push a vX.Y.Z tag to build every platform and create a draft release.
+# Review and publish the draft on GitHub; nothing is published automatically.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check tag and changelog
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.18.0'
+      - name: Check the tag matches package.json and CHANGELOG.md
+        run: node scripts/release-notes.mjs --tag "$GITHUB_REF_NAME"
+
+  build:
+    needs: check
+    uses: ./.github/workflows/build.yml
+
+  release:
+    name: Create draft release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.18.0'
+      - name: Download installers
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: Wraith-*-${{ github.sha }}
+          path: assets
+          merge-multiple: true
+      - name: Write SHA256SUMS.txt
+        working-directory: assets
+        run: |
+          # The Mac zips only matter for automatic updates, which Wraith doesn't have yet.
+          rm -f -- *.zip
+          ls -l
+          sha256sum -- * > ../SHA256SUMS.txt
+          mv ../SHA256SUMS.txt .
+          cat SHA256SUMS.txt
+      - name: Write release notes
+        run: node scripts/release-notes.mjs --tag "$GITHUB_REF_NAME" --assets assets --out notes.md
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if state=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$state" != "true" ]; then
+              echo "::error::Release $GITHUB_REF_NAME is already published; not changing it."
+              exit 1
+            fi
+            gh release edit "$GITHUB_REF_NAME" --title "Wraith $version" --notes-file notes.md
+            gh release upload "$GITHUB_REF_NAME" assets/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Wraith $version" --notes-file notes.md assets/*
+          fi
+          echo "Draft release ready: $(gh release view "$GITHUB_REF_NAME" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,9 +1,12 @@
 name: Build native desktop installers
 
 on:
+  # Branches only: version tags build through release.yml, which calls this workflow.
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -29,6 +32,9 @@ jobs:
             arch: arm64
           - runner: macos-15-intel
             platform: darwin
+            arch: x64
+          - runner: ubuntu-24.04
+            platform: linux
             arch: x64
     env:
       WRAITH_TARGET_PLATFORM: ${{ matrix.platform }}
@@ -75,6 +81,8 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.exe
+            release/*.AppImage
+            release/*.deb
       - name: Upload build provenance and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -840,7 +840,7 @@ export class Controller extends EventEmitter {
       this.state.preferences.onboardingComplete = input.onboardingComplete;
     }
     if (input.hostPlatform != null) {
-      if (!['mac', 'windows'].includes(input.hostPlatform)) throw new Error('Invalid computer platform.');
+      if (!['mac', 'windows', 'linux'].includes(input.hostPlatform)) throw new Error('Invalid computer platform.');
       this.state.preferences.hostPlatform = input.hostPlatform;
     }
     if (input.phonePlatform != null) {

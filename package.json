@@ -84,6 +84,21 @@
         "nsis"
       ]
     },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "synopsis": "Set your phone's location from your computer",
+      "maintainer": "Tootsalot <273500852+tootsalot@users.noreply.github.com>"
+    },
+    "deb": {
+      "recommends": [
+        "usbmuxd",
+        "android-sdk-platform-tools-common"
+      ]
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true

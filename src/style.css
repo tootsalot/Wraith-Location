@@ -162,7 +162,7 @@ html.host-mac.desktop-app .wordmark { width: 216px; }
 .search-message { display: flex; align-items: center; gap: 8px; padding: 12px; }
 .search-error { color: var(--danger); }
 .titlebar-right { display: flex; align-items: center; gap: 4px; flex: none; }
-.host-windows .titlebar { padding-right: 148px; }
+.host-windows .titlebar, .host-linux .titlebar { padding-right: 148px; }
 .preview-label { padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 500; }
 .phone-chip { height: 34px; display: flex; align-items: center; gap: 9px; padding: 0 10px 0 12px; margin-right: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); text-align: left; }
 .phone-chip:hover { border-color: var(--line-strong); }
@@ -179,7 +179,7 @@ html.host-mac.desktop-app .wordmark { width: 216px; }
 
 /* Phone popover */
 .phone-popover { position: fixed; top: 58px; right: 96px; z-index: 50; width: 340px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
-.host-windows .phone-popover { right: 230px; }
+.host-windows .phone-popover, .host-linux .phone-popover { right: 230px; }
 .device-empty { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius); text-align: left; }
 .device-empty span { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .device-empty small { color: var(--muted); font-size: 12px; }

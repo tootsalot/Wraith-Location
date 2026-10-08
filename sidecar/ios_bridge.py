@@ -42,6 +42,8 @@ def emit(value):
 def explain(error):
     name = type(error).__name__
     if "Usbmuxd" in name:
+        if sys.platform.startswith("linux"):
+            return "Apple USB services are unavailable. Install usbmuxd (on Ubuntu or Debian: sudo apt install usbmuxd), then reconnect the cable."
         return "Apple USB services are unavailable. On Windows, install iTunes and reconnect the cable."
     if any(word in name for word in ("Pair", "Passcode", "UserDenied", "Password")):
         return "Unlock the iPhone and accept Trust This Computer, then try again."

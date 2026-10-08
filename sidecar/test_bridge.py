@@ -371,6 +371,14 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(lockdown.__aexit__.await_count, 2)
 
+    def test_missing_usbmuxd_names_the_fix_for_each_platform(self):
+        class ConnectionFailedToUsbmuxdError(Exception):
+            pass
+        with patch.object(bridge_module.sys, "platform", "linux"):
+            self.assertIn("sudo apt install usbmuxd", bridge_module.explain(ConnectionFailedToUsbmuxdError()))
+        with patch.object(bridge_module.sys, "platform", "win32"):
+            self.assertIn("install iTunes", bridge_module.explain(ConnectionFailedToUsbmuxdError()))
+
 
 if __name__ == "__main__":
     unittest.main()

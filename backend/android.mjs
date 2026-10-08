@@ -22,11 +22,15 @@ function networkSerial(serial) {
   try { return wifiEndpoint(serial) === serial; } catch { return /^adb-[A-Za-z0-9_-]+\._adb-tls-connect\._tcp\.?$/.test(serial); }
 }
 
+// Linux adb reports "no permissions" until udev rules let this user open the phone's USB device.
+const USB_PERMISSION_HINT = 'This computer isn’t allowed to open the phone’s USB connection. On Ubuntu or Debian, run sudo apt install android-sdk-platform-tools-common, then reconnect the cable.';
+
 export function parseDevices(output, connection = 'usb') {
   return output.split(/\r?\n/).map(line => {
-    const match = line.match(/^(\S+)\s+(device|unauthorized|offline)\b(.*)$/);
+    const match = line.match(/^(\S+)\s+(device|unauthorized|offline|no permissions)\b(.*)$/);
     if (!match) return null;
-    const [, serial, adbState, tail] = match;
+    const [, serial, state, tail] = match;
+    const adbState = state === 'no permissions' ? 'no-permissions' : state;
     const wifi = networkSerial(serial);
     if (connection === 'wifi' ? !wifi : (!VALID_SERIAL.test(serial) || /^emulator-|_adb-tls-|\.local$/i.test(serial))) return null;
     const fields = Object.fromEntries([...tail.matchAll(/\b([a-z_]+):([^\s]+)/g)].map(m => [m[1], m[2]]));
@@ -134,6 +138,7 @@ export class AndroidAdapter {
     const transport = (await this.transports()).find(item => item.serial === serial);
     if (!transport) throw new Error(`This Android phone is not connected over ${this.connection === 'wifi' ? 'Wi-Fi' : 'USB'}. Reconnect it before continuing.`);
     if (`android:${transport.hardwareId || serial}` !== device.id) throw new Error('The phone at this address has changed. Refresh and select it again.');
+    if (transport.adbState === 'no-permissions') throw new Error(USB_PERMISSION_HINT);
     if (transport.adbState === 'unauthorized') throw new Error('Unlock the Android phone and accept the USB debugging authorization prompt.');
     if (transport.adbState !== 'device') throw new Error('The Android phone is offline. Unlock it and reconnect.');
     return serial;
@@ -168,7 +173,7 @@ export class AndroidAdapter {
     const entries = await this.transports();
     return Promise.all(entries.map(async entry => {
       const device = {id: `android:${entry.hardwareId || entry.serial}`, serial: entry.serial, ...(entry.hardwareId ? {hardwareId: entry.hardwareId} : {}), platform: 'android', name: (entry.fields.model || entry.serial).replaceAll('_', ' '), osVersion: '', connection: this.connection};
-      if (entry.adbState !== 'device') return {...device, state: entry.adbState, detail: entry.adbState === 'unauthorized' ? 'Unlock this phone and accept the USB debugging prompt.' : 'Phone is offline. Reconnect it.'};
+      if (entry.adbState !== 'device') return {...device, state: entry.adbState === 'no-permissions' ? 'unauthorized' : entry.adbState, detail: entry.adbState === 'no-permissions' ? USB_PERMISSION_HINT : entry.adbState === 'unauthorized' ? 'Unlock this phone and accept the USB debugging prompt.' : 'Phone is offline. Reconnect it.'};
       try {
         // Keep ownership when Android changes its Wi-Fi port or ADB uses an alias.
         // Identity was read from the authenticated device during this scan.
