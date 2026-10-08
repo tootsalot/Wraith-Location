@@ -14,6 +14,7 @@ GeoPort, or LocationSimulator is copied into this application.
 | Electron | 44.3.0 | Desktop runtime | MIT and Chromium third-party notices; https://github.com/electron/electron |
 | Leaflet | 1.9.4 | Interactive map | BSD-2-Clause; https://github.com/Leaflet/Leaflet |
 | Lucide | See package-lock.json | Interface icons | ISC; https://github.com/lucide-icons/lucide |
+| Geologica (via @fontsource-variable/geologica) | 5.3.0 | Interface typeface, bundled locally | SIL Open Font License 1.1; https://github.com/googlefonts/geologica |
 | Vite | 8.3.0 | Renderer build tooling | MIT; https://github.com/vitejs/vite |
 | electron-builder | 26.15.3 | Installer tooling | MIT; https://github.com/electron-userland/electron-builder |
 | PyInstaller | See sidecar/requirements-build.txt | Python runtime packaging | GPL with distribution exception; https://github.com/pyinstaller/pyinstaller |

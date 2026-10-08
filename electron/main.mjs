@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker, nativeTheme } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { existsSync, constants } from 'node:fs';
@@ -20,6 +20,22 @@ app.setName('Wraith');
 protocol.registerSchemesAsPrivileged([{ scheme: 'ghost', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 let window, controller, poll, wakeLock, quitting = false, quitPending = false;
+// Window chrome colours match the renderer's Spectral theme tokens.
+const TITLEBAR_HEIGHT = 52;
+const chrome = () => nativeTheme.shouldUseDarkColors
+  ? { background: '#141126', color: '#1a1631', symbolColor: '#eeeaff' }
+  : { background: '#f6f4fc', color: '#fdfcff', symbolColor: '#1d1838' };
+// The renderer's prefers-color-scheme follows nativeTheme, so one setting drives both.
+function syncTheme(preference) {
+  const source = ['dark', 'light'].includes(preference) ? preference : 'system';
+  if (nativeTheme.themeSource !== source) nativeTheme.themeSource = source;
+}
+nativeTheme.on('updated', () => {
+  if (!window || window.isDestroyed()) return;
+  const colors = chrome();
+  window.setBackgroundColor(colors.background);
+  if (process.platform === 'win32') window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_HEIGHT });
+});
 const geocoder = new Geocoder();
 const allowedExternal = new Set(['github.com', 'developer.android.com', 'developer.apple.com', 'support.apple.com', 'www.openstreetmap.org', 'openstreetmap.org', 'photon.komoot.io', 'doronz88.github.io']);
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -67,8 +83,13 @@ async function boot() {
     const active = state.session && ['active', 'applying', 'reconnecting'].includes(state.session.status);
     if (active && wakeLock == null) wakeLock = powerSaveBlocker.start('prevent-app-suspension');
     if (!active && wakeLock != null) { powerSaveBlocker.stop(wakeLock); wakeLock = null; }
+    syncTheme(state.preferences.theme);
     if (window && !window.isDestroyed()) window.webContents.send('ghost:state', state);
   });
+  // Read settings before the window exists, so its first frame and first state
+  // use real preferences (placeholder preferences used to reopen first-run setup).
+  await controller.load();
+  syncTheme(controller.state.preferences.theme);
 
   const handlers = {
     getState: () => controller.snapshot(),
@@ -127,9 +148,9 @@ async function boot() {
   });
 
   window = new BrowserWindow({
-    width: 1440, height: 940, minWidth: 960, minHeight: 680, backgroundColor: '#f8f9fb', show: false,
-    title: 'Wraith — Your location, on your terms', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 22 },
-    ...(process.platform === 'win32' ? { titleBarOverlay: { color: '#f8f9fb', symbolColor: '#1d1d1f', height: 58 } } : {}),
+    width: 1440, height: 940, minWidth: 960, minHeight: 680, backgroundColor: chrome().background, show: false,
+    title: 'Wraith', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 18 },
+    ...(process.platform === 'win32' ? { titleBarOverlay: { color: chrome().color, symbolColor: chrome().symbolColor, height: TITLEBAR_HEIGHT } } : {}),
     webPreferences: { preload: path.join(rootPath, 'electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true }
   });
   window.webContents.setUserAgent(`${window.webContents.getUserAgent()} Wraith/${app.getVersion()}`);
@@ -149,9 +170,7 @@ async function boot() {
     { label: 'View', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, ...(!app.isPackaged ? [{ role: 'toggleDevTools' }] : [])] },
     { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] }
   ]));
-  // Read settings first so the window never sees placeholder preferences (which
-  // used to reopen first-run setup). Device discovery must not hold the window hostage.
-  await controller.load();
+  // Device discovery must not hold the window hostage.
   if (devUrl) await window.loadURL(devUrl);
   else if (existsSync(path.join(dist, 'index.html'))) await window.loadURL('ghost://app/index.html');
   else throw new Error('Build the interface first with npm run build.');

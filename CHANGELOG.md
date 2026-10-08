@@ -2,6 +2,11 @@
 
 ## 0.2.0 (Wraith)
 
+- Redesign the interface (Spectral): dark and light themes that follow the system, with a choice in Settings; a focused side panel; the phone in a title-bar menu; saved places and routes in a Library; and a playback bar showing speed, speed limit, traffic lights ahead, time left and Restore.
+- Fix Set location being disabled for phones connected over Wi-Fi.
+- Fix map overlays drawing over the phone menu and search results, and the selected pin covering route stop markers.
+- Repaint less: icons are re-scanned only when new ones render, and closed dialogs no longer re-render every second.
+- Make the renderer test reliable by showing its window, so screenshots no longer hang.
 - Rename the fork to Wraith, with a new icon and app identity. On first launch a packaged Wraith copies saved places, setup choices and saved routes from an existing Ghost installation.
 - Make traffic-light stops less frequent and shorter: about one red in four, usually 5–15 seconds, fewer reds just after stopping, and one light per junction.
 - Unlock route planning, saved routes and Fixed location after a route arrives. The phone keeps holding the destination, and **New route from here** starts the next route at the current point.

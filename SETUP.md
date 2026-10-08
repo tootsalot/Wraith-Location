@@ -26,7 +26,7 @@ The installer includes ADB, the iPhone runtime, and the Android location helper.
 
 ## Choose your configuration
 
-On first launch, choose your computer and phone, complete the matching checklist, and select **Continue to map**. **Setup** in the toolbar opens the checklist again. The checklist is guidance; the connected phone must also appear as **Ready** before starting a location session.
+On first launch, choose your computer and phone, complete the matching checklist, and select **Continue to map**. The **?** button in the title bar opens the checklist again. The checklist is guidance; the connected phone must also appear as **Ready** before starting a location session.
 
 Use one unlocked phone and a USB cable that carries data. Keep the computer online for the first preparation. Charging alone does not confirm a data connection.
 
@@ -68,7 +68,7 @@ The Android adapter targets **Android 8 and later**. See [Android's developer se
 
 ## Set one location
 
-1. Choose **Fixed location**. Search for a place and select a result, click the map, or enter latitude/longitude and select the coordinates.
+1. Choose **Place**. Search for a place and select a result, click the map, or enter latitude/longitude and select the coordinates.
 2. Check the selected phone and point. Selecting a pin changes the preview only.
 3. Click **Set location**. For another point, select it and click **Update location**.
 4. Open a map on the phone, enable its location permission, and use its current-location button. Confirm the phone shows the selected area.
@@ -77,14 +77,14 @@ Wraith displays command acknowledgements on iPhone and helper readbacks on Andro
 
 ## Follow a road route
 
-1. Select **Route**. Search or drop a pin for the start, then click **Add selected pin to route**.
-2. Add a destination the same way. You can add up to 12 stops, in travel order.
-3. Click **Plan road route**. Inspect the road line and distance before starting. Pins may snap to nearby roads; disconnected roads fail planning.
-4. Click **Start route · 45 mph**. The phone moves to the first road point, then follows the route at **45 mph**. Wraith sends a new target every **one second**.
-5. **Pause route** holds the current point; **Resume route · 45 mph** continues. Arrival holds the destination. Check motion in the phone's map as well as Wraith's blue dot.
+1. Select **Route** and choose **Drive**, **Bike** or **Walk**.
+2. Click the map to add the start, then the destination. Search results and typed coordinates can be added with **Add selected pin**. You can add up to 12 stops, in travel order, and drag them to reorder.
+3. Click **Plan route**. Inspect the line, distance and estimated time before starting. Pins may snap to nearby roads; disconnected roads fail planning.
+4. Choose **Realistic motion** and a top speed, then click **Start route**. The phone moves to the first point and follows the route. Wraith sends a new target every **one second**. The bar along the bottom of the map shows speed, the speed limit, traffic lights ahead and time left.
+5. **Pause** holds the current point; **Resume** continues. Arrival holds the destination, and you can plan another route (**New route from here**) or set a place without restoring first.
 6. Click **Restore real location** when finished. Allow the phone's map a moment to refresh before unplugging.
 
-The speed is constant, regardless of road limits or traffic. The blue dot represents the last sent point. Keep Wraith running, the cable connected, and the computer awake. Minimizing Wraith does not stop playback. Unplugging, sleep, or slow updates pause movement; reconnect the same phone and press **Resume**. Restarting Wraith does not recover route geometry.
+With realistic motion off, the speed is constant, regardless of road limits or traffic. The blue dot represents the last sent point. Keep Wraith running, the cable connected, and the computer awake. Minimizing Wraith does not stop playback. Unplugging, sleep, or slow updates pause movement; reconnect the same phone and press **Resume**. Restarting Wraith does not recover route geometry.
 
 ## If something goes wrong
 

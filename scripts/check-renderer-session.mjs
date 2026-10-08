@@ -24,9 +24,14 @@ const deadline = setTimeout(() => {
   process.exit(1);
 }, 45_000);
 
+const openConnections = async () => {
+  if (await page.locator('#phone-popover').isHidden()) await page.locator('#phone-chip').click();
+  await page.locator('#connection-options').click();
+};
+let page;
 try {
   application = await _electron.launch({ executablePath: electronPath, args: [fixture], cwd: root, env, timeout: 15_000 });
-  const page = await application.firstWindow();
+  page = await application.firstWindow();
   page.setDefaultTimeout(5000);
   const rendererErrors = [];
   page.on('pageerror', error => rendererErrors.push(error.message));
@@ -46,6 +51,7 @@ try {
 
   // Keep the select focused while real-time events pass the original five-second
   // failure boundary. Node identity catches menus being rebuilt on each event.
+  await page.locator('#phone-chip').click();
   await page.locator('#device-select').focus();
   const originalNodes = await page.evaluateHandle(() => ({
     select: document.querySelector('#device-select'),
@@ -163,7 +169,7 @@ try {
   await page.screenshot({path: path.join(artifacts, 'ghost-route-compact.png')});
   console.log('PASS: route stop selection, planning without device mutation, start/pause/resume, moving dot, and compact controls.');
   // Pairing drafts must survive state pushes, and secrets disappear on submit.
-  await page.locator('#connection-options').click();
+  await openConnections();
   assert.equal(await page.locator('[data-connection="wifi"]').isEnabled(), true, 'A working USB route can switch to Wi-Fi.');
   await page.getByRole('button', {name: 'Close connection settings'}).click();
   assert.equal(await page.locator('#wifi-prompt').isVisible(), false);
@@ -172,13 +178,13 @@ try {
   await page.locator('#wifi-prompt-dismiss').click();
   await page.evaluate(() => window.ghostFixture.setState({network: {wifi: true}}));
   assert.equal(await page.locator('#wifi-prompt').isVisible(), false, 'Dismissed prompts stay dismissed across heartbeats.');
-  await page.locator('#connection-options').click();
+  await openConnections();
   await page.locator('#switch-to-wifi').click();
   await page.waitForFunction(() => !document.querySelector('#wifi-dialog').open);
   const handedOff = await page.evaluate(() => window.ghost.getState());
   assert.equal(handedOff.session.connection, 'wifi'); assert.equal(handedOff.route.status, 'running');
   assert.deepEqual((await page.evaluate(() => window.ghostFixture.getCalls())).filter(c => c.method === 'switchToWifi'), [{method: 'switchToWifi', deviceId: phone.id}]);
-  await page.locator('#connection-options').click();
+  await openConnections();
   await page.evaluate(async () => { const s = await window.ghost.getState(); await window.ghostFixture.setState({preferences: {...s.preferences, connection: 'usb'}}); });
   await page.evaluate(() => window.ghostFixture.setState({session: null, route: null, devices: []}));
   await page.locator('[data-connection="wifi"]').click();

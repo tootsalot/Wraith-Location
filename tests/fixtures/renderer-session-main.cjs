@@ -36,6 +36,8 @@ app.whenReady().then(async () => {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
   await window.loadFile(path.join(process.env.GHOST_RENDERER_DIST, 'index.html'));
+  // A never-shown window stops painting, which hangs screenshots. Show it without stealing focus.
+  window.showInactive();
 }).catch(error => {
   console.error(error);
   app.exit(1);

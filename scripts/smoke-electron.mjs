@@ -96,12 +96,14 @@ try {
   await page.locator('#save-form button[type=submit]').click();
   await page.locator('#save-dialog').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#saved-count').textContent(), '1');
+  await page.locator('#saved-nav-button').click();
   await page.getByRole('button', { name: 'Rename Millennium Park', exact: true }).click();
   await page.locator('#place-name').fill('Chicago favorite');
   await page.locator('#save-form button[type=submit]').click();
   await page.locator('#save-dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Remove Chicago favorite', exact: true }).click();
   await pollState(page, s => s.savedPlaces.length === 0);
+  await page.locator('#library-back').click();
   await page.locator('#search-input').fill('Millennium Park Chicago');
   await page.locator('#search-input').press('Enter');
   await page.waitForFunction(() => document.querySelector('.search-result,.search-error'), null, { timeout: 20000 });

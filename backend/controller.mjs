@@ -664,6 +664,10 @@ export class Controller extends EventEmitter {
       if (!['ios', 'android'].includes(input.phonePlatform)) throw new Error('Invalid phone platform.');
       this.state.preferences.phonePlatform = input.phonePlatform;
     }
+    if (input.theme != null) {
+      if (!['system', 'dark', 'light'].includes(input.theme)) throw new Error('Invalid theme.');
+      this.state.preferences.theme = input.theme;
+    }
     if (input.routeMode != null) {
       if (!MODES[input.routeMode]) throw new Error('Invalid travel mode.');
       this.state.preferences.routeMode = input.routeMode;

@@ -10,6 +10,7 @@ export const defaults = () => ({
     onboardingComplete: false,
     hostPlatform: null,
     phonePlatform: null,
+    theme: 'system',
     routeMode: 'drive',
     realisticMotion: true,
     routeSpeeds: { drive: 70, bike: 14, walk: 3.2 },

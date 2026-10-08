@@ -53,6 +53,7 @@ left untouched.
 - A top-speed slider for each travel mode, adjustable while a route runs.
 - After arrival, plan another route, start one from the phone's current position, or set a fixed location, all without restoring real GPS first.
 - Click the map to add stops, drag stops to reorder or move them, and save routes (full path) to replay later. GPX tracks import and export.
+- Dark and light themes (following the system, or chosen in Settings), with a live playback bar for routes.
 - Interactive map, manual place search, draggable pin, and latitude/longitude input.
 - First-run Mac/Windows and iPhone/Android survey with a checklist tailored to all four USB configurations.
 - Saved places and recent selections stored locally.
@@ -88,7 +89,7 @@ available inside Electron. For a production renderer inside Electron: `npm start
 ## Device setup
 
 On first launch, choose the computer and phone you use. Wraith saves that choice
-locally and shows only the relevant setup checklist. Open **Setup** in the toolbar
+locally and shows only the relevant setup checklist. Open the **?** button in the title bar
 or **Change** in Settings to review or switch configurations later.
 
 **iPhone (initial target: iOS 17.4+):** connect with a USB data cable, unlock and
@@ -165,7 +166,7 @@ stuck.
 ## Route playback
 
 Choose **Route** and a travel mode (**Drive**, **Bike** or **Walk**). Click the map to
-add stops in order, or use search or coordinates and **Add selected pin to route**
+add stops in order, or use search or coordinates and **Add selected pin**
 (in Route mode, choosing a search result adds it directly). Drag stops in the list,
 or press Alt+Up/Down, to reorder them; drag numbered markers to move them.
 **Plan route** previews the path and an estimated time. **Start route** moves the
@@ -197,7 +198,7 @@ two seconds.
 **Pause** holds the last point. **Resume** continues from standstill. Arrival holds the
 exact destination and unlocks route editing: plan another route, choose **New route
 from here** to start from the phone's current point, load a saved route, or switch
-to **Fixed location**, all without returning the phone to its real GPS position.
+to **Place**, all without returning the phone to its real GPS position.
 **Restore real location** stops simulation. Disconnect and sleep
 pause motion. Reconnection holds the last attempted point on the same phone until
 you press Resume. Slow commands or scheduling stalls pause rather than building a
@@ -210,7 +211,7 @@ before editing a running or paused route, and Restore before changing phones.
 
 ### Saved routes and GPX
 
-The bookmark button under **Saved routes** stores the planned route, including its
+**Library → Routes → Save current** stores the planned route, including its
 full path and road data, in `routes.json` beside the settings file. A saved route
 replays without contacting the routing service. **Import GPX** turns a track into a
 ready route that follows the recorded path exactly; tracks with timestamps replay at
