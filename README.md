@@ -1,24 +1,144 @@
 # Wraith
 
-A small Electron app for setting a fixed phone location or following a road route over USB or Wi-Fi. Search for a
-place, drop a pin, or enter coordinates, then explicitly apply it to your selected
-phone. Windows and macOS share one interface and use the appropriate iPhone or
-Android adapter.
+Set your phone's location from your computer: hold it at a fixed place, or send it
+along real roads at a believable pace, as a drive, a bike ride or a walk. Wraith works
+with iPhone and Android, over a USB cable or Wi-Fi, on Windows and macOS.
 
-Current version: **0.2.0**. See [CHANGELOG.md](CHANGELOG.md) for realistic routes,
-travel modes, saved routes, GPX, and earlier changes.
+![Wraith in dark mode, driving from Union Station to Navy Pier in Chicago at 32 mph in a 30 zone](docs/images/wraith-route-dark.png)
 
-Wraith is a modified version of [Ghost](https://github.com/Blueturboguy07/ghost-location)
-by the Ghost contributors, renamed and extended by Tootsalot. Like Ghost, it is free
-software under the GNU GPL v3 or later; see [License](#license).
+**[Download Wraith 0.2.0 for Windows](https://github.com/tootsalot/ghost-Toots/releases/latest)**, then follow the
+[setup guide](SETUP.md) to connect your phone.
 
-![Wraith following an example road route in Chicago](docs/images/ghost-route.png)
+Wraith is a modified version of [Ghost](https://github.com/Blueturboguy07/ghost-location). It is free
+software under the GNU GPL v3 or later.
 
-*Route mode in the original Ghost interface, using an example phone and sample Chicago route.*
+## Install
 
-## Build and run locally
+**Windows 10 or 11 (64-bit):** download `Wraith-0.2.0-win-x64.exe` from the
+[latest release](https://github.com/tootsalot/ghost-Toots/releases/latest) and run it. The
+installer isn't code-signed yet, so Windows SmartScreen may warn you; choose
+**More info → Run anyway** if you trust the download. Each release lists a SHA-256
+checksum you can compare against.
 
-Wraith has no prebuilt downloads yet. On Windows or macOS, with Node.js 24 LTS and npm:
+**macOS:** there is no prebuilt Mac download yet. [Build it from source](#build-from-source)
+on the Mac you'll use.
+
+The app includes everything it needs to talk to phones. You don't need Python,
+Node.js, Android Studio or an account. If you used Ghost before, Wraith copies your
+saved places, setup choices and saved routes the first time it starts.
+
+## Using Wraith
+
+### Hold a place
+
+Choose **Place**, then search, type coordinates, or click the map. Nothing changes on
+your phone until you press **Set location**. While a location is live, the bar at the
+bottom of the map shows when the phone last acknowledged it, and **Restore real
+location** hands the phone back its real GPS.
+
+![Wraith in light mode holding an iPhone at Navy Pier, with recent places in the side panel](docs/images/wraith-place-light.png)
+
+### Follow a route
+
+Choose **Route** and a travel mode: **Drive**, **Bike** or **Walk**. Click the map to add
+stops in order (up to 12), or add search results and typed coordinates with **Add
+selected pin**. Drag stops in the list or on the map to change them, then press
+**Plan route** to see the path, distance and estimated time. **Start route** moves the
+phone to the first stop and sends a new position every second.
+
+With **Realistic motion** on, Wraith moves like a person would:
+
+- Drivers keep to about 5 mph over the posted limit, never above your **Top speed**.
+- Everyone accelerates and brakes smoothly and slows for corners.
+- Some traffic lights are red: roughly one in four, usually for 5 to 15 seconds,
+  and less often straight after a stop.
+- Cyclists and walkers move a little below the speed you set.
+- The reported position drifts a few metres, like real GPS, and arrival lands
+  exactly on the destination.
+
+Turn realism off to move at exactly the chosen speed. Both settings can change
+while a route runs. The playback bar shows your speed, the limit, the lights ahead
+and the time left; **Pause** holds the current point.
+
+### After you arrive
+
+The phone stays at the destination. Plan another route, press **New route from
+here** to start from where the phone is, or switch to **Place** to hold somewhere
+else. None of this needs a trip back to your real location first.
+
+### Library and GPX
+
+Open **Library** to reuse saved places and routes. A saved route keeps its full path,
+so it replays without planning again or going online. **Import GPX** turns a recorded
+track into a route that follows it exactly, at its recorded speeds when the file has
+timestamps; a short GPX route becomes stops to plan. **Export GPX** saves the current
+route.
+
+### Wi-Fi
+
+After a working USB session, Wraith offers to switch the phone to Wi-Fi. The current
+place carries over and a running route continues. Android 11 and later can also
+pair without a cable. See the [Wi-Fi guide](SETUP.md#connect-over-the-same-wi-fi-network-017).
+
+### Appearance
+
+Wraith follows your system's light or dark setting. Choose **Dark** or **Light** in
+Settings to override it.
+
+## Phone requirements
+
+- **iPhone:** iOS 17.4 or later, with Developer Mode turned on. Windows also needs
+  Apple's USB drivers (install the Apple Devices app). The first **Prepare** needs
+  internet and can take a few minutes.
+- **Android:** Android 8 or later, with USB debugging on. **Prepare** installs the
+  Appium Settings helper and selects it as the mock-location app. No root needed.
+  Some Windows PCs need the phone maker's ADB driver.
+
+The [setup guide](SETUP.md) walks through all four computer and phone combinations.
+Wraith never removes passcodes or changes Find My.
+
+## How sessions behave
+
+- **One phone at a time.** Restore the current phone before using another.
+  Selecting a pin only changes the preview; your phone moves only when you press
+  **Set location**, **Update location** or **Start route**.
+- **What "acknowledged" means.** On iPhone, Wraith re-sends the location every second
+  and records each acknowledgement. On Android, the helper re-sends it every two
+  seconds and Wraith reads back its coordinates. Neither proves which location
+  another app is using, so check the result in that app.
+- **Disconnects.** If the cable or Wi-Fi drops, Wraith waits and reconnects the same
+  phone to the same target while it stays open. Routes pause on a disconnect,
+  sleep or slow updates, and continue when you press **Resume**.
+- **Restoring.** **Restore real location** stops the simulation and cancels any
+  automatic reconnect. Quitting restores by default; if that fails, Wraith asks
+  before quitting and keeps a record so you can **Retry** or **Restore** next time.
+  After a restart, nothing resumes on its own.
+- **When restore can't happen.** Unplugging, sleep, a force-quit or a crashed helper
+  can leave the phone at its simulated location. Reconnect and press **Restore**, or
+  restart the phone. If a different phone is connected while an old session is
+  unresolved, Wraith discards the old record without contacting the old phone.
+
+## Privacy and online services
+
+Wraith has no account, telemetry or analytics, and keeps no location history online.
+Your settings, saved places and saved routes stay in local files on your computer.
+It contacts these services only:
+
+| Service | When | What is sent |
+| --- | --- | --- |
+| OpenStreetMap tiles | While the map is visible | Map tile requests |
+| Photon (komoot) | When you submit a search | Your search text |
+| Valhalla (FOSSGIS), with OSRM as fallback | When you press **Plan route** | Stop coordinates, then the planned path for road data |
+
+Playing a route, saved routes and GPX files make no online requests. The public
+Photon, Valhalla and OSRM services are free for reasonable use, with no uptime
+guarantee; you can point search at another Photon server in Settings. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Build from source
+
+You need Node.js 24 LTS and npm. Building the iPhone helper also needs Python 3.12
+or 3.13.
 
 ```sh
 npm ci
@@ -26,307 +146,54 @@ npm run runtime:prepare
 npm run pack
 ```
 
-`npm run pack` creates a ready-to-run app in `release/` (`release/win-unpacked/Wraith.exe`
-on Windows). `npm run dist` builds an installer instead (`Wraith-0.2.0-win-x64.exe`).
-Rebuild with `npm run pack` after pulling changes. The `release/` folder is not committed.
+`npm run pack` creates a runnable app in `release/` (`release/win-unpacked/Wraith.exe`
+on Windows). `npm run dist` builds the installer instead. Build on the operating
+system you're targeting: Windows x64, macOS Apple Silicon and macOS Intel are
+supported; Windows on ARM is not yet.
 
-Building the iPhone runtime needs Python 3.12 or 3.13. If it isn't installed, `uv` can
-provide one without a system-wide install:
+If Python isn't installed, [uv](https://docs.astral.sh/uv/) can provide one without a
+system-wide install:
 
 ```sh
 uv python install 3.12
 GHOST_BUILD_PYTHON="$(uv python find 3.12)" npm run runtime:prepare
 ```
 
-In PowerShell, set the variable with `$env:GHOST_BUILD_PYTHON = (uv python find 3.12)` first.
+In PowerShell, run `$env:GHOST_BUILD_PYTHON = (uv python find 3.12)` first. The
+runtime step downloads Python packages, Google's platform tools and the Android
+helper. It doesn't change any phone settings.
 
-Then follow the [setup guide](SETUP.md) for Mac → iPhone, Windows → iPhone, Mac → Android,
-or Windows → Android. The first time a packaged Wraith starts, it copies saved places,
-setup choices and saved routes from an existing Ghost installation; Ghost's own files are
-left untouched.
+For development, `npm run dev` runs the app with live reload. `npm run preview` shows
+the interface in a browser, without phone control.
 
-## Features
+The packaging check refuses to build an app with missing or mismatched phone
+runtimes. Installers are unsigned; a trusted macOS launch and a recognised Windows
+publisher need signing credentials. The GitHub Actions workflow in
+`.github/workflows/build.yml` builds unsigned installers for all three targets as
+workflow artifacts.
 
+## Tests
 
-- Drive, bike or walk routes through up to 12 stops, with one-second updates, Pause and Resume.
-- Realistic motion: posted speed limits (drivers run about 5 mph over), slowing for corners, real traffic-light stops, natural pace changes and GPS drift. It can be switched off for exact constant-speed playback.
-- A top-speed slider for each travel mode, adjustable while a route runs.
-- After arrival, plan another route, start one from the phone's current position, or set a fixed location, all without restoring real GPS first.
-- Click the map to add stops, drag stops to reorder or move them, and save routes (full path) to replay later. GPX tracks import and export.
-- Dark and light themes (following the system, or chosen in Settings), with a live playback bar for routes.
-- Interactive map, manual place search, draggable pin, and latitude/longitude input.
-- First-run Mac/Windows and iPhone/Android survey with a checklist tailored to all four USB configurations.
-- Saved places and recent selections stored locally.
-- A one-click USB → Wi-Fi handoff keeps the current location and resumes routes. Wraith offers it after a working USB session when the computer has Wi-Fi. Android 11+ also supports cable-free pairing.
-- iPhone location simulation through a bundled pymobiledevice3 sidecar.
-- Android location simulation through bundled ADB and Appium Settings.
-- Ongoing fixed-location updates and same-phone reconnection while Wraith stays open.
-- Automatic stale recovery-record cleanup when a different usable USB phone appears.
-- Explicit restoration, normal-quit cleanup, and a persisted recovery journal.
-- Honest disconnected/error states: lost connectivity never means “restored”.
-- No account, telemetry, analytics, or cloud location history.
+| Command | What it checks |
+| --- | --- |
+| `npm test` | Device targeting, sessions, reconnection and recovery, route planning and fallback, realistic motion, playback timing, saved routes and GPX |
+| `npm run test:renderer-session` | The interface against a fake phone: controls stay stable through live updates, and routes plan, start, pause and resume |
+| `npm run test:native` | The real app with read-only phone discovery, live search and route planning. It never sets or restores a location |
+| `npm run test:ios-stream` | The iPhone bridge end to end, with only the phone connection simulated |
 
-## Development
+Set `GHOST_SMOKE_EXECUTABLE` to a packaged app and run `node scripts/smoke-electron.mjs`
+to check a build. Automated tests use simulated phones; real-device results are
+tracked in [docs/hardware-test-matrix.md](docs/hardware-test-matrix.md).
 
-Use Node.js 24 LTS and npm. Python 3.12 or 3.13 is needed only to **build** the iPhone
-runtime. End users of a complete packaged release do not install Python, Node.js,
-Android Studio, or Appium Server.
+## Credits and license
 
-```sh
-npm ci
-npm run runtime:prepare
-npm run dev
-```
+Wraith is based on [Ghost](https://github.com/Blueturboguy07/ghost-location), copyright the
+Ghost contributors. Tootsalot modified it in October 2026 for version 0.2.0: renamed it,
+redesigned the interface, added realistic route motion, travel modes, saved routes, GPX
+support and route editing after arrival, and changed the routing provider. The full
+history is in this repository's git log. Wraith is not affiliated with or endorsed by
+the Ghost project.
 
-`GHOST_BUILD_PYTHON` can point to a specific Python executable. A runtime build can
-download public Python packages, Apple-device support dependencies, Google's
-platform tools, and the Android helper. Driver installation and changes to phone
-settings are performed through the setup flow, not by the build scripts.
-
-For a browser-only interface preview: `npm run preview`. Hardware controls are only
-available inside Electron. For a production renderer inside Electron: `npm start`.
-
-## Device setup
-
-On first launch, choose the computer and phone you use. Wraith saves that choice
-locally and shows only the relevant setup checklist. Open the **?** button in the title bar
-or **Change** in Settings to review or switch configurations later.
-
-**iPhone (initial target: iOS 17.4+):** connect with a USB data cable, unlock and
-trust the computer, enable Developer Mode in Settings → Privacy & Security, and
-restart when requested. Use Wraith's Prepare action to mount the developer support
-image. Initial preparation requires internet and can take a few minutes. Windows
-also needs Apple's USB services/drivers (upstream recommends Microsoft Store
-iTunes). The application does not remove passcodes or change Find My settings.
-
-**Android (8.0+):** enable Developer options and USB debugging, connect a USB data
-cable, and approve the computer's RSA prompt. Wraith's explicit Prepare action
-installs Appium Settings, grants location access, and selects it as the mock-location
-provider. Follow any additional device-specific prompts. Some Windows phones need
-the manufacturer's ADB USB driver. No root is required by this approach.
-
-## Session behavior
-
-Selecting a map pin only changes the preview. **Set location** starts or updates a
-fixed location on the selected phone. Only one unresolved phone session is
-kept at a time. When an unknown, waiting, or error recovery record belongs to a
-different phone and Wraith discovers another usable USB phone, Wraith automatically
-discards the old record so the newly connected phone can be prepared or have a
-location set.
-Active, applying, reconnecting, and stopping sessions remain protected from this
-automatic cleanup.
-
-On iPhone, the sidecar reasserts the selected coordinates on a one-second loop.
-Each DVT location command is awaited before Wraith records its acknowledgement.
-Fresh acknowledgements also keep the selected USB connection ready during
-discovery polling, so a transient discovery miss does not gray out a healthy
-session. On Android, the on-phone helper emits timestamped mock fixes every two
-seconds; the desktop checks the helper's reported coordinates.
-
-The interface distinguishes command acknowledgements from helper readbacks.
-An iOS acknowledgement confirms the developer command, and an Android readback
-confirms the helper's coordinates. Neither proves a fresh GPS reading in a phone
-app. The Android receiver does not expose the fix timestamp to the desktop.
-Verify the result in the intended phone app.
-
-**Restore** stops the Android mock service or sends the iOS clear-location command.
-The iOS clear API does not return an independent real-GPS measurement; cached
-locations in other apps can take time to update. Normal quit attempts restoration
-by default. If that fails, Wraith offers to keep the app open or quit with an
-unresolved session saved for recovery.
-
-If the phone disconnects during a live session, Wraith waits and automatically reconnects
-the **same phone and applied target** when it becomes available again, while the
-same Wraith process remains open. Selecting another pin still changes only the
-preview; use **Update location** to apply that target. You can also use **Retry
-location** or **Reconnect & set location** on the same phone after a connection
-failure. While the previous session is active, applying, reconnecting, or stopping,
-a different phone remains blocked.
-
-If that previous session is already unresolved as unknown, waiting, or error,
-connecting a different usable USB phone automatically removes the old recovery
-record instead. This does not send **Restore** to the old phone. Because the old
-phone is absent or cannot be verified, it may retain its last simulated location
-until it is restarted or restored separately.
-
-**Restore** cancels automatic reconnection, including while the cable is absent.
-If reconnection is already in progress, Wraith waits for that bounded operation
-before clearing the simulation. An unplugged phone must reconnect before Wraith
-can send the clear command.
-
-USB unplug, laptop sleep, force-quit, and a crashed helper cannot guarantee immediate
-restoration. Android's upstream helper can keep supplying its last coordinates
-without the cable. After Wraith restarts, continuing or clearing a saved session on
-the same phone requires a manual **Retry location** or **Restore**; it is never
-automatically resumed on startup. A different usable phone instead triggers the
-unresolved-record cleanup described above.
-An iPhone restart is a further recovery step if its developer simulation becomes
-stuck.
-
-## Route playback
-
-Choose **Route** and a travel mode (**Drive**, **Bike** or **Walk**). Click the map to
-add stops in order, or use search or coordinates and **Add selected pin**
-(in Route mode, choosing a search result adds it directly). Drag stops in the list,
-or press Alt+Up/Down, to reorder them; drag numbered markers to move them.
-**Plan route** previews the path and an estimated time. **Start route** moves the
-selected phone to the first point and begins playback.
-
-Wraith plans with the open-source [Valhalla](https://github.com/valhalla/valhalla)
-service run by FOSSGIS on OpenStreetMap data, then reads the road attributes along
-the path: posted speed limits where mapped, estimated road speeds elsewhere, and
-traffic signals. If Valhalla is unavailable, Wraith falls back to
-[OSRM](https://github.com/Project-OSRM/osrm-backend) (with estimated limits and no
-signal data). Pins snap to roads or paths within 1 km; if no connected route exists,
-planning fails instead of drawing a straight line.
-
-With **Realistic motion** on (the default), drivers cruise about 5 mph over the
-posted limit (3–9 mph as the pace drifts), never above the **Top speed** slider.
-They accelerate and brake smoothly, slow for corners based on their sharpness, and
-stop at roughly one traffic light in four, usually for 5–15 seconds and at most 30.
-A red is less likely just after stopping, as on coordinated signals. Without signal
-data, occasional stops are placed at sharp junctions and on slower roads. Cyclists and walkers
-move a little below the slider speed and wait at crossings. Reported positions
-drift a few metres like real GPS, and arrival holds the exact destination. With
-realism off, the phone moves at exactly the slider speed. The slider and the
-toggle can change while a route runs. Location commands run every second in the
-desktop backend, including while the window is minimized. The blue dot shows the
-last sent point, not an independently measured phone position. Android reuses
-Appium Settings' immediate update on each new target; its idle heartbeat remains
-two seconds.
-
-**Pause** holds the last point. **Resume** continues from standstill. Arrival holds the
-exact destination and unlocks route editing: plan another route, choose **New route
-from here** to start from the phone's current point, load a saved route, or switch
-to **Place**, all without returning the phone to its real GPS position.
-**Restore real location** stops simulation. Disconnect and sleep
-pause motion. Reconnection holds the last attempted point on the same phone until
-you press Resume. Slow commands or scheduling stalls pause rather than building a
-backlog or jumping ahead. Timings depend on the operating system and connection latency;
-the app does not guarantee that every phone app consumes each fix.
-
-Route progress stays in memory. Restarting Wraith does not resume a route; it keeps
-the existing recovery record for Retry or Restore. Wait for arrival or Restore
-before editing a running or paused route, and Restore before changing phones.
-
-### Saved routes and GPX
-
-**Library → Routes → Save current** stores the planned route, including its
-full path and road data, in `routes.json` beside the settings file. A saved route
-replays without contacting the routing service. **Import GPX** turns a track into a
-ready route that follows the recorded path exactly; tracks with timestamps replay at
-their recorded speeds when realistic motion is on. A GPX route of up to 12 points
-becomes stops to plan. **Export GPX** writes the stops and the full path.
-
-## Maps, search, and privacy
-
-Search sends your submitted text to the configured Photon provider. Viewing the map
-requests tiles from OpenStreetMap. Device identifiers and saved/session coordinates
-stay in the local application settings file. Planning a route sends the chosen
-stop coordinates (without device identifiers) to the public Valhalla service, and
-the resulting path back to it for road attributes, or to OSRM as a fallback. Route
-playback, saved routes and GPX files make no routing-service requests. Search is rate-limited and cached for
-the running app; there is no autocomplete, background geocoding, or offline tile
-download. Pin and coordinate selection remain available if search fails.
-
-The default Photon public demo is appropriate only for moderate use and has no
-availability guarantee. Change the HTTPS Photon API endpoint in Settings for a
-larger public deployment. See THIRD_PARTY_NOTICES.md.
-
-The FOSSGIS Valhalla and OSRM demo services are for reasonable noncommercial use,
-with no uptime guarantee. Wraith contacts them only on **Plan route**, spacing its
-requests a second apart. See [OSRM's demo policy](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server).
-A larger public deployment needs its own routing service instead of relying on these.
-
-## Build installers
-
-```sh
-npm test
-npm run build
-npm run runtime:prepare
-npm run pack
-npm run dist
-```
-
-Build on each target operating system. macOS Apple Silicon, macOS Intel and Windows
-x64 use matching Python sidecars and ADB resources. Windows ARM is not a supported
-release target yet. The packaging check refuses to produce an app with missing
-device runtimes. Release installers are unsigned. Signing/notarization credentials are required
-for a trusted macOS launch and a recognized Windows publisher.
-No publishing or repository upload is performed by these commands.
-
-For v0.2.0, a macOS arm64 build produces `Wraith-0.2.0-mac-arm64.dmg` and
-`Wraith-0.2.0-mac-arm64.zip` in `release/`.
-
-### Native CI builds
-
-`.github/workflows/build.yml` defines separate native jobs for Windows x64
-(`windows-2025`), macOS Apple Silicon (`macos-15`), and macOS Intel
-(`macos-15-intel`). Each uses pinned Node.js 24.18.0 and Python 3.12.10, installs
-the npm lockfile with `npm ci`, builds both phone runtimes, runs tests, and produces
-unsigned installers. Action implementations are pinned to commit hashes.
-The Python pin is the latest 3.12 build available for these macOS/Windows targets
-in GitHub's `actions/python-versions` manifest; newer 3.12 entries there are Linux-only.
-
-The prepack check verifies executable CPU types, the actual iOS executable and
-Python bundle, Android helper version/checksum, ADB files/checksums, license notices,
-and device-free launch smoke checks. Native target matching is required because
-electron-builder's `${platform}` resource macro resolves to `darwin` or `win32`
-from its build host. Cross-platform packaging and Windows ARM are excluded.
-
-CI uploads installers and provenance as workflow artifacts only; it does not
-publish a GitHub release, upload to a store, or use signing credentials. Passing
-CI does not verify real phones. Complete the hardware test matrix before claiming
-phone/OS compatibility.
-
-## Validation
-
-`npm test` checks USB filtering, exact-device targeting, argument handling,
-adapter failures, acknowledgement handling, fixed-target refresh, same-process
-reconnection, cancellation, persisted crash recovery, concurrency,
-search validation, saved settings, route interpolation, Valhalla/OSRM planning and
-fallback, realistic motion (limits, corners, signals, drift, speed caps), arrival
-unlock, saved routes, GPX import/export, one-second scheduling,
-pause/resume, arrival, slow transport, and cancellation during an in-flight update. Sidecar-specific Python tests are in
-`sidecar/` where applicable. See docs/hardware-test-matrix.md for on-device checks.
-
-`npm run test:ios-stream` runs a hardware-free stress harness through the real
-Node adapter, JSONL bridge loop, Python bridge, and pinned upstream location API.
-It replaces only the USB/tunnel/DVT peer, then checks repeated acknowledgements,
-an in-place target update, concurrent discovery, and post-Restore silence.
-
-`npm run test:native` launches Electron with isolated settings and exercises map
-search, live Valhalla road planning, coordinates, saved-place create/rename/delete, setup, preferences, and a
-compact window. It performs read-only USB discovery but never invokes phone
-preparation, Set, or Restore. Screenshots are written to `artifacts/`. It requires
-a graphical desktop; live search and map tiles need internet access.
-
-`npm run test:renderer-session` runs a separate, bounded Electron fixture with no
-device adapters and all external requests blocked. Ten real-time heartbeats span
-more than eight seconds, checking that Update stays enabled, the pending pin and
-selected phone persist, focus is retained, recovery restores the controls, and
-only an explicit Update submits the new target. It also checks route stop selection,
-plan/start/pause/resume controls, and a moving map dot with fake device state. It uses existing Electron and
-Playwright dependencies, temporary settings, and a 45-second deadline; no phone
-runtime or network access is needed.
-
-To check an already packaged app, set `GHOST_SMOKE_EXECUTABLE` to its executable and
-run `node scripts/smoke-electron.mjs`. The check also requires both bundled runtimes
-to report available. See docs/validation.md for the recorded local build results.
-
-Automated transport tests use controlled doubles; they are not evidence of phone
-compatibility. The project must be tested on actual target phone/OS combinations
-before claiming all four connections are verified.
-
-## License
-
-GPL-3.0-or-later. See LICENSE and THIRD_PARTY_NOTICES.md.
-
-Wraith is based on [Ghost](https://github.com/Blueturboguy07/ghost-location), copyright
-the Ghost contributors, and is distributed under the same license. Tootsalot modified it
-in October 2026 (version 0.2.0): renamed it to Wraith, added realistic route motion,
-travel modes, saved routes, GPX support and route editing after arrival, and changed
-the routing provider. The full history of changes is in this repository's git log.
-"Ghost" is the upstream project's name; Wraith is not affiliated with or endorsed by it.
-
-For wireless setup, see [the Wi-Fi guide](SETUP.md#connect-over-the-same-wi-fi-network-017). Wi-Fi support is implemented and covered by automated tests; physical phone validation is still needed.
+Wraith is free software under the GNU General Public License v3.0 or later. See
+[LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Map data ©
+OpenStreetMap contributors. See [CHANGELOG.md](CHANGELOG.md) for release history.
