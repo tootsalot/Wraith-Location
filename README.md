@@ -34,6 +34,11 @@ your phone until you press **Set location**. While a location is live, the bar a
 bottom of the map shows when the phone last acknowledged it, and **Restore real
 location** hands the phone back its real GPS.
 
+A held place drifts slowly by a few metres around its exact spot, like real GPS on a
+phone that isn't moving. Choose **Off**, **Subtle** (the default, about 2–3 m) or
+**Normal** (about 5 m) under **Natural drift** in Settings. A route's destination
+drifts the same way after you arrive.
+
 ![Wraith in light mode holding an iPhone at Navy Pier, with recent places in the side panel](docs/images/wraith-place-light.png)
 
 ### Follow a route
@@ -58,6 +63,15 @@ Turn realism off to move at exactly the chosen speed. Both settings can change
 while a route runs. The playback bar shows your speed, the limit, the lights ahead
 and the time left; **Pause** holds the current point.
 
+### Wander
+
+Choose **Wander**, set a centre by clicking the map, searching or typing coordinates,
+then pick a radius (50 m to 2 km) and a walking pace. **Start wandering** moves the
+phone to the centre, then walks real footpaths to random spots inside the circle,
+lingering 30 seconds to 3 minutes at each before moving on. The playback bar shows
+whether it's walking or lingering, the spots visited and the distance walked. Without
+internet, it walks in straight lines inside the circle.
+
 ### After you arrive
 
 The phone stays at the destination. Plan another route, press **New route from
@@ -77,6 +91,12 @@ route.
 After a working USB session, Wraith offers to switch the phone to Wi-Fi. The current
 place carries over and a running route continues. Android 11 and later can also
 pair without a cable. See the [Wi-Fi guide](SETUP.md#connect-over-the-same-wi-fi-network-017).
+
+### Notifications
+
+When Wraith isn't the window in front, it can show a desktop notification when a route
+arrives, a phone needs attention, a route pauses itself, or a phone reconnects. Each
+can be switched off under **Notifications** in Settings.
 
 ### Appearance
 
@@ -126,7 +146,7 @@ It contacts these services only:
 | --- | --- | --- |
 | OpenStreetMap tiles | While the map is visible | Map tile requests |
 | Photon (komoot) | When you submit a search | Your search text |
-| Valhalla (FOSSGIS), with OSRM as fallback | When you press **Plan route** | Stop coordinates, then the planned path for road data |
+| Valhalla (FOSSGIS), with OSRM as fallback | When you press **Plan route**, and for each walk in wander mode | Stop coordinates, then the planned path for road data |
 
 Playing a route, saved routes and GPX files make no online requests. The public
 Photon, Valhalla and OSRM services are free for reasonable use, with no uptime

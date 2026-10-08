@@ -11,6 +11,8 @@ export const defaults = () => ({
     hostPlatform: null,
     phonePlatform: null,
     theme: 'system',
+    drift: 'subtle',
+    notifications: { enabled: true, arrived: true, attention: true, autoPaused: true, reconnected: true },
     routeMode: 'drive',
     realisticMotion: true,
     routeSpeeds: { drive: 70, bike: 14, walk: 3.2 },

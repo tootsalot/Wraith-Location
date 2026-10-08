@@ -476,3 +476,14 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
 .route-active #route-pin-slot { display: none; }
 /* Keep map overlays (z-index 450–600) inside the map, under title-bar popovers and menus. */
 .map-workspace { isolation: isolate; }
+/* Wander mode */
+.wander-area { stroke: var(--route); stroke-width: 2; stroke-dasharray: 6 6; fill: var(--accent); fill-opacity: 0.08; }
+#wander-center { margin-bottom: 10px; }
+#wander-pin-slot .coordinate-form { margin: 0 0 4px; }
+.wander-settings { margin: 2px 0 16px; padding-top: 4px; }
+.wander-settings .speed-row:first-child { margin-top: 8px; }
+#wander-start { margin-top: 4px; }
+.wander-active #wander-pin-slot, .wander-active #wander-section .route-tip, .wander-active #wander-section .route-provider { display: none; }
+/* Notification settings */
+.notify-events { display: flex; flex-direction: column; gap: 12px; margin: 14px 0 0 14px; padding-left: 14px; border-left: 2px solid var(--line); }
+.notify-events .setting-row strong { font-weight: 450; }

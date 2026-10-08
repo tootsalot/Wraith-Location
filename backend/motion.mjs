@@ -30,6 +30,29 @@ export function clampSpeedMph(mode, mph) {
   return Number.isFinite(mph) ? Math.min(spec.maxMph, Math.max(spec.minMph, mph)) : spec.defaultMph;
 }
 
+// Typical spread, in metres, of the wobble applied to a held place.
+export const DRIFT_LEVELS = Object.freeze({ off: 0, subtle: 2.5, normal: 5 });
+
+// Spatially correlated GPS error: an Ornstein–Uhlenbeck process in metres east and
+// north. A long time constant makes a stationary phone wander slowly, as real fixes do.
+export class GpsDrift {
+  constructor({ sigma = DRIFT_LEVELS.subtle, tau = 25, random = Math.random } = {}) {
+    this.sigma = sigma; this.tau = tau; this.random = random; this.east = 0; this.north = 0;
+  }
+  gaussian() { return Math.sqrt(-2 * Math.log(1 - this.random())) * Math.cos(2 * Math.PI * this.random()); }
+  step(seconds) {
+    let remaining = Math.max(0, seconds);
+    while (remaining > 1e-9) {
+      const h = Math.min(1, remaining); remaining -= h;
+      const kick = this.sigma * Math.sqrt(2 * h / this.tau);
+      this.east += -this.east / this.tau * h + kick * this.gaussian();
+      this.north += -this.north / this.tau * h + kick * this.gaussian();
+    }
+    return { east: this.east, north: this.north };
+  }
+  apply(point) { return offsetPoint(point, this.east, this.north); }
+}
+
 const TURN_WINDOW = 15, TURN_MIN_DEGREES = 8, CLUSTER_METERS = 20;
 
 // Corners from geometry: the heading change across a short window gives a radius,

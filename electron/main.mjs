@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker, nativeTheme } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker, nativeTheme, Notification } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
@@ -17,9 +17,13 @@ const rootPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const devUrl = !app.isPackaged && process.env.WRAITH_DEV_URL === 'http://127.0.0.1:5173' ? process.env.WRAITH_DEV_URL : null;
 if (!app.isPackaged) app.setPath('userData', process.env.WRAITH_TEST_DATA || path.join(rootPath, '.wraith-dev'));
 app.setName('Wraith');
+// Windows attributes notifications by app ID; the installer's shortcut uses the build appId.
+if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? 'io.github.tootsalot.wraith' : process.execPath);
 protocol.registerSchemesAsPrivileged([{ scheme: 'wraith', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 let window, controller, poll, wakeLock, quitting = false, quitPending = false;
+// Hold shown notifications so a click still reaches its handler after garbage collection.
+const shownNotifications = new Set();
 // Window chrome colours match the renderer's Spectral theme tokens.
 const TITLEBAR_HEIGHT = 52;
 const chrome = () => nativeTheme.shouldUseDarkColors
@@ -83,6 +87,23 @@ async function boot() {
     syncTheme(state.preferences.theme);
     if (window && !window.isDestroyed()) window.webContents.send('wraith:state', state);
   });
+  controller.on('alert', ({ type, title, body }) => {
+    const settings = controller.state.preferences.notifications || {};
+    if (settings.enabled === false || settings[type] === false || !Notification.isSupported()) return;
+    // While Wraith is in front, its own status bar already shows the change.
+    if (window && !window.isDestroyed() && window.isFocused() && !window.isMinimized()) return;
+    const notification = new Notification({ title, body });
+    shownNotifications.add(notification);
+    const release = () => shownNotifications.delete(notification);
+    notification.on('click', () => {
+      release();
+      if (!window || window.isDestroyed()) return;
+      if (window.isMinimized()) window.restore();
+      window.show(); window.focus();
+    });
+    notification.on('close', release);
+    notification.show();
+  });
   // Read settings before the window exists, so its first frame and first state
   // use real preferences (placeholder preferences used to reopen first-run setup).
   await controller.load();
@@ -102,6 +123,7 @@ async function boot() {
     startRoute: value => controller.startRoute(value),
     pauseRoute: () => controller.pauseRoute(),
     resumeRoute: () => controller.resumeRoute(),
+    startWander: value => controller.startWander(value),
     updateRouteOptions: value => controller.updateRouteOptions(value),
     saveRoute: value => controller.saveRoute(value),
     loadSavedRoute: id => controller.loadSavedRoute(id),

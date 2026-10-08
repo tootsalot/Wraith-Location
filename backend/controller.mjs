@@ -2,12 +2,15 @@ import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { place, text, geocoderUrl } from './validation.mjs';
 import { Router, measurePath, pointAlong, normalizeRoute } from './routing.mjs';
-import { Motion, MODES, CONSTANT_SPEED_MPH, clampSpeedMph } from './motion.mjs';
+import { Motion, MODES, CONSTANT_SPEED_MPH, clampSpeedMph, GpsDrift, DRIFT_LEVELS } from './motion.mjs';
 import { parseGpx, toGpx } from './gpx.mjs';
-import { MPS_PER_MPH } from './geo.mjs';
+import { MPS_PER_MPH, offsetPoint, distanceBetween } from './geo.mjs';
 
 const REPLACEABLE_SESSION_STATUSES = new Set(['unknown', 'waiting', 'error']);
 const USABLE_REPLACEMENT_STATES = new Set(['ready', 'setup-required']);
+const NOTIFICATION_TYPES = ['arrived', 'attention', 'autoPaused', 'reconnected'];
+const WANDER_LINGER_SECONDS = [30, 180];
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export class Controller extends EventEmitter {
   constructor({ adapters, store, library = null, now = Date.now, router = new Router(), clock = () => performance.now(), network = async () => ({wifi: false}), random = Math.random }) {
@@ -25,6 +28,7 @@ export class Controller extends EventEmitter {
     this.deviceMisses = new Map();
     this.router = router; this.clock = clock;
     this.plannedRoute = null; this.routePath = null; this.motion = null;
+    this.drift = null; this.driftTimer = null; this.driftStepAt = 0; this.wander = null;
     this.state.route = null; this.routeTimer = null; this.routeUpdate = null;
   }
   // Read settings before the window opens; device discovery follows in init().
@@ -111,7 +115,9 @@ export class Controller extends EventEmitter {
         }
         this.notify(); return this.snapshot();
       }
+      this.stopDrift();
       active.status = this.canResume(active) ? 'waiting' : 'unknown';
+      this.alert('attention', 'Phone disconnected', `${active.deviceName || 'Your phone'} is no longer connected. Wraith will reconnect it when it's available.`);
       this.pauseRouteMotion('Phone disconnected. Resume the route after this phone reconnects.');
       active.autoReconnect = this.canResume(active);
       active.message = active.autoReconnect ? 'Phone disconnected. Waiting to reconnect this phone and resume the selected location.' : 'Phone disconnected. Connect this phone, then retry the location or restore it.';
@@ -150,7 +156,7 @@ export class Controller extends EventEmitter {
     }
 
     this.deviceMisses.delete(previous.deviceId);
-    this.pauseRouteMotion(); this.state.route = null;
+    this.pauseRouteMotion(); this.state.route = null; this.wander = null; this.stopDrift();
     const oldId = typeof previous.deviceId === 'string' ? previous.deviceId : null;
     const oldSerial = typeof previous.serial === 'string' ? previous.serial : oldId?.replace(/^[^:]+:/, '');
     if (oldId && oldSerial && typeof previous.platform === 'string') {
@@ -206,6 +212,8 @@ export class Controller extends EventEmitter {
           this.motion?.halt();
           this.routeStepAt = this.clock(); this.scheduleRouteTick();
         }
+        // The handoff briefly marks the session as reconnecting, which stops drift.
+        if (!this.routeLocked()) this.startDrift(this.state.session);
       };
       let touched = false, transport = usb;
       const chooseTransport = device => {
@@ -302,15 +310,17 @@ export class Controller extends EventEmitter {
         throw new Error('Restore the previous phone session before setting another location.');
       }
       this.pauseRouteMotion();
+      this.stopDrift();
       const recovering = previous && previous.status !== 'active';
       const wasLive = previous && this.canResume(previous);
-      const current = { id: randomUUID(), deviceId: device.id, platform: device.platform, deviceName: device.name, serial: device.serial, connection: device.connection, ...(device.hardwareId ? {hardwareId: device.hardwareId} : {}), ...point, status: 'applying', autoReconnect: Boolean(wasLive), refreshCount: 0, lastRefreshAt: null, message: recovering ? 'Reconnecting this phone and sending the new location…' : 'Sending the selected location to your phone…', startedAt: new Date(this.now()).toISOString() };
+      // A held place keeps its exact anchor; natural drift wobbles around it.
+      const current = { id: randomUUID(), deviceId: device.id, platform: device.platform, deviceName: device.name, serial: device.serial, connection: device.connection, ...(device.hardwareId ? {hardwareId: device.hardwareId} : {}), ...point, ...(route ? {} : { anchor: { latitude: point.latitude, longitude: point.longitude } }), status: 'applying', autoReconnect: Boolean(wasLive), refreshCount: 0, lastRefreshAt: null, message: recovering ? 'Reconnecting this phone and sending the new location…' : 'Sending the selected location to your phone…', startedAt: new Date(this.now()).toISOString() };
       this.state.session = current;
       // Journal before device mutation, so a crash cannot discard an unresolved session.
       try { await this.persist(); }
       catch (error) { this.state.session = previous; throw error; }
-      this.state.route = route ? { id: route.id, deviceId: device.id, status: 'starting', mode: options.mode, realistic: options.realistic, topSpeedMph: options.topSpeedMph, speedMph: 0, limitMph: null, limitPosted: false, waiting: false, distanceMeters: route.distanceMeters, traveledMeters: 0, remainingSeconds: options.remainingSeconds, point, message: 'Sending the route start to your phone…' } : null;
-      if (!route) this.motion = null;
+      this.state.route = route ? { id: route.id, deviceId: device.id, status: 'starting', mode: options.mode, realistic: options.realistic, topSpeedMph: options.topSpeedMph, speedMph: 0, limitMph: null, limitPosted: false, waiting: false, distanceMeters: route.distanceMeters, traveledMeters: 0, remainingSeconds: options.remainingSeconds, point, message: 'Sending the route start to your phone…', ...(options.extra || {}) } : null;
+      if (!route) { this.motion = null; this.wander = null; }
       this.notify();
       this.resumeSessionId = wasLive ? current.id : null;
       this.retryAt = 0; this.retryAttempts = 0;
@@ -321,7 +331,9 @@ export class Controller extends EventEmitter {
         if (['unknown', 'waiting'].includes(current.status)) throw new Error(current.message);
         this.confirmActive(current, result);
         this.state.recentPlaces = [{ id: randomUUID(), ...point, usedAt: new Date().toISOString() }, ...this.state.recentPlaces.filter(p => p.latitude !== point.latitude || p.longitude !== point.longitude)].slice(0, 12);
-        await this.persist(); return this.snapshot();
+        await this.persist();
+        if (!route) this.startDrift(current);
+        return this.snapshot();
       } catch (error) {
         this.pauseRouteMotion('Could not start the route. Reconnect this phone, then resume.');
         current.status = 'unknown';
@@ -337,6 +349,7 @@ export class Controller extends EventEmitter {
     const recovering = this.recoveryPromise;
     if (this.state.busy && !recovering) throw new Error('Wait for the current device operation to finish.');
     this.pauseRouteMotion();
+    this.stopDrift();
     this.resumeSessionId = null;
     if (this.state.session) this.state.session.autoReconnect = false;
     if (recovering) await recovering.catch(() => {});
@@ -355,7 +368,7 @@ export class Controller extends EventEmitter {
       try {
         if (recovering) await this.adapters[device.platform].reset?.(device);
         await this.adapters[device.platform].clear(device);
-        this.state.session = null; await this.persist(); this.state.route = null; return this.snapshot();
+        this.state.session = null; await this.persist(); this.state.route = null; this.wander = null; return this.snapshot();
       } catch (error) {
         this.state.session = session;
         session.status = 'unknown'; session.message = `Restoration could not be confirmed: ${error.message}`;
@@ -366,12 +379,15 @@ export class Controller extends EventEmitter {
   async sessionEnded({ deviceId, sessionId, error, retry = true }) {
     const current = this.state.session;
     if (current?.deviceId !== deviceId || (sessionId && sessionId !== current.id) || current.status === 'stopping') return;
+    const wasLive = ['active', 'applying', 'reconnecting'].includes(current.status);
     this.pauseRouteMotion('Connection interrupted. Resume the route after this phone reconnects.');
+    this.stopDrift();
     if (!retry) this.resumeSessionId = null;
     current.autoReconnect = this.canResume(current);
     current.status = current.autoReconnect ? 'waiting' : 'unknown';
     current.message = error || 'The device connection ended.';
     if (current.autoReconnect) current.message += ' Wraith will reconnect this phone and resume the selected location.';
+    if (wasLive && !this.suspended) this.alert('attention', 'Phone needs attention', current.message);
     this.retryAt = 0;
     try { await this.persist(); } catch { this.state.warning = 'Could not save session recovery state.'; }
     this.notify();
@@ -434,6 +450,8 @@ export class Controller extends EventEmitter {
         if (['unknown', 'waiting'].includes(current.status)) throw new Error(current.message);
         this.confirmActive(current, result);
         await this.persist();
+        this.alert('reconnected', 'Phone reconnected', `${current.deviceName || 'Your phone'} is connected again and holding its location.`);
+        this.startDrift(current);
       } catch (error) {
         current.status = 'waiting'; current.message = `Reconnect failed: ${error.message} Wraith will retry while this phone is available.`;
         this.scheduleRetry(current);
@@ -478,6 +496,7 @@ export class Controller extends EventEmitter {
     return { mode, realistic, topSpeedMph: clampSpeedMph(mode, input.topSpeedMph ?? (realistic ? MODES[mode].defaultMph : CONSTANT_SPEED_MPH)) };
   }
   routeRunningMessage(route = this.state.route) {
+    if (route?.kind === 'wander') return route.phase === 'walking' ? 'Walking to a new spot in the wander area. Sending a location every second.' : 'Lingering for a moment before the next walk.';
     const verb = MODES[route?.mode]?.verb || 'Following the road';
     return route?.realistic ? `${verb} with realistic speeds, corners and stops. Sending a location every second.` : `${verb} at ${Math.round(route?.topSpeedMph ?? CONSTANT_SPEED_MPH)} mph. Sending a location every second.`;
   }
@@ -487,6 +506,7 @@ export class Controller extends EventEmitter {
     if (this.routeLocked()) throw new Error('Restore real location before starting another route, or wait for this one to arrive.');
     const options = this.routeOptions(route, { realistic, topSpeedMph, mode });
     const motion = new Motion(this.routePath, route.profile, { ...options, random: this.random });
+    this.wander = null;
     // Set before the first command so a failed start can still be resumed.
     this.motion = motion;
     await this.applyLocation({ deviceId, ...pointAlong(this.routePath, 0), label: `Route to ${route.waypoints.at(-1).label}` }, route, { ...options, remainingSeconds: motion.remainingSeconds() });
@@ -498,10 +518,10 @@ export class Controller extends EventEmitter {
   }
   async updateRouteOptions(input = {}) {
     const route = this.state.route;
-    if (!route || !this.motion || route.status === 'completed') throw new Error('There is no route in progress.');
-    const options = this.routeOptions({ ...route, provider: null }, { realistic: input.realistic ?? route.realistic, topSpeedMph: input.topSpeedMph ?? route.topSpeedMph });
-    this.motion.setOptions(options);
-    Object.assign(route, { realistic: options.realistic, topSpeedMph: options.topSpeedMph, remainingSeconds: this.motion.remainingSeconds() });
+    if (!route || route.status === 'completed' || (!this.motion && route.kind !== 'wander')) throw new Error('There is no route in progress.');
+    const options = this.routeOptions({ ...route, provider: null }, { realistic: route.kind === 'wander' ? true : input.realistic ?? route.realistic, topSpeedMph: input.topSpeedMph ?? route.topSpeedMph });
+    this.motion?.setOptions(options);
+    Object.assign(route, { realistic: options.realistic, topSpeedMph: options.topSpeedMph, remainingSeconds: route.kind === 'wander' ? null : this.motion.remainingSeconds() });
     if (route.status === 'running') route.message = this.routeRunningMessage();
     this.notify(); return this.snapshot();
   }
@@ -556,33 +576,46 @@ export class Controller extends EventEmitter {
     }
     const started = this.clock(), elapsed = started - this.routeStepAt;
     if (elapsed < 1000) { this.scheduleRouteTick(1000 - elapsed); return; }
-    if (elapsed > 2000) { await this.pauseRoute(); this.state.route.message = 'Updates fell behind. Resume when the computer and phone connection are ready.'; this.notify(); return; }
+    if (elapsed > 2000) {
+      await this.pauseRoute(); this.state.route.message = 'Updates fell behind. Resume when the computer and phone connection are ready.';
+      this.alert('autoPaused', 'Route paused', 'Location updates fell behind, so Wraith paused the route. Resume it when the connection is ready.');
+      this.notify(); return;
+    }
     this.routeStepAt = started;
     const operation = async () => {
       try {
         const device = this.device(current.deviceId);
-        const step = this.motion.step(elapsed / 1000);
-        const { point, distance } = step;
+        let point, distance = 0;
+        if (route.kind === 'wander') point = this.wanderStep(route, elapsed / 1000);
+        else {
+          const step = this.motion.step(elapsed / 1000);
+          ({ point, distance } = step);
+          Object.assign(route, {
+            traveledMeters: distance, remainingSeconds: this.motion.remainingSeconds(),
+            speedMph: step.speedMps / MPS_PER_MPH, waiting: step.waiting,
+            limitMph: step.limitMps == null ? null : step.limitMps / MPS_PER_MPH, limitPosted: step.posted,
+          });
+        }
         // Record the attempted point before sending. Recovery holds this point;
         // it never advances the route while transport state is uncertain.
         Object.assign(current, point);
-        Object.assign(route, {
-          point, traveledMeters: distance, remainingSeconds: this.motion.remainingSeconds(),
-          speedMph: step.speedMps / MPS_PER_MPH, waiting: step.waiting,
-          limitMph: step.limitMps == null ? null : step.limitMps / MPS_PER_MPH, limitPosted: step.posted,
-        });
+        route.point = point;
         const adapter = this.adapters[device.platform];
         const result = await (adapter.update ? adapter.update(device, { ...point, sessionId: current.id }) : adapter.set(device, { ...point, sessionId: current.id }));
         if (this.state.session !== current || current.status !== 'active' || this.closing) return;
         current.lastRefreshAt = result?.refreshedAt || new Date(this.now()).toISOString();
         current.refreshCount = (current.refreshCount || 0) + 1;
         current.refreshIntervalMs = 1000; current.refreshSource = 'command-ack';
-        if (distance >= route.distanceMeters) {
+        if (route.kind !== 'wander' && distance >= route.distanceMeters) {
           route.status = 'completed'; route.speedMph = 0; route.waiting = false;
           route.message = 'Arrived. Your phone holds the destination. Plan another route, set a fixed location, or restore real location.';
+          // The destination becomes a held place, so natural drift applies there too.
+          current.anchor = { latitude: point.latitude, longitude: point.longitude };
           await this.persist();
+          this.alert('arrived', 'Route arrived', `Your phone reached ${this.plannedRoute?.waypoints?.at(-1)?.label || 'the destination'} and is holding it there.`);
         } else if (this.clock() - started >= 1000) {
           this.pauseRouteMotion('Location updates are taking longer than a second. Check the connection, then resume.');
+          this.alert('autoPaused', 'Route paused', 'Location updates are taking longer than a second, so Wraith paused the route.');
           await this.persist();
         }
         this.notify();
@@ -592,7 +625,151 @@ export class Controller extends EventEmitter {
     };
     this.routeUpdate = operation();
     try { await this.routeUpdate; } finally { this.routeUpdate = null; }
+    if (route.status === 'completed') this.startDrift(current);
     this.scheduleRouteTick(Math.max(1, 1000 - (this.clock() - started)));
+  }
+  // Desktop notifications are delivered by the main process, filtered by preferences.
+  alert(type, title, body) {
+    if (!this.closing) this.emit('alert', { type, title, body });
+  }
+  driftSigma() { return DRIFT_LEVELS[this.state.preferences.drift] ?? DRIFT_LEVELS.subtle; }
+  driftInterval(current) { return current?.platform === 'android' ? 2000 : 1000; }
+  // Natural drift: while a place is held, move the reported point a few metres
+  // around its anchor, like a real GPS fix on a phone that isn't moving.
+  startDrift(current = this.state.session) {
+    this.stopDrift();
+    const sigma = this.driftSigma();
+    if (!sigma || !current?.anchor || current.status !== 'active' || this.routeLocked() || this.closing || this.suspended) return;
+    this.drift = new GpsDrift({ sigma, random: this.random });
+    this.driftStepAt = this.clock();
+    current.message = `Holding this place with natural GPS drift. Sending a location every ${current.platform === 'android' ? 'two seconds' : 'second'}.`;
+    this.scheduleDrift();
+  }
+  stopDrift() { clearTimeout(this.driftTimer); this.driftTimer = null; this.drift = null; }
+  scheduleDrift(delay) {
+    clearTimeout(this.driftTimer);
+    if (!this.drift || this.closing) return;
+    this.driftTimer = setTimeout(() => { this.driftTimer = null; this.tickDrift().catch(() => {}); }, delay ?? this.driftInterval(this.state.session));
+    this.driftTimer.unref?.();
+  }
+  async tickDrift() {
+    const current = this.state.session, drift = this.drift;
+    if (!drift) return;
+    if (this.routeUpdate || this.state.busy) { this.scheduleDrift(100); return; }
+    if (this.closing || this.suspended || current?.status !== 'active' || !current.anchor || this.routeLocked()) { this.stopDrift(); return; }
+    const started = this.clock();
+    drift.step(Math.min(5, (started - this.driftStepAt) / 1000));
+    this.driftStepAt = started;
+    await this.sendHeldPoint(current, drift.apply(current.anchor), () => this.drift === drift);
+    if (this.drift === drift) this.scheduleDrift(Math.max(1, this.driftInterval(current) - (this.clock() - started)));
+  }
+  // Sends one point for a held place, sharing the in-flight slot with route updates.
+  async sendHeldPoint(current, point, stillWanted = () => true) {
+    const operation = (async () => {
+      try {
+        const device = this.device(current.deviceId);
+        Object.assign(current, point);
+        const adapter = this.adapters[device.platform];
+        const result = await (adapter.update ? adapter.update(device, { ...point, sessionId: current.id }) : adapter.set(device, { ...point, sessionId: current.id }));
+        if (this.state.session !== current || current.status !== 'active' || !stillWanted()) return;
+        current.lastRefreshAt = result?.refreshedAt || new Date(this.now()).toISOString();
+        current.refreshCount = (current.refreshCount || 0) + 1;
+        this.notify();
+      } catch (error) {
+        await this.sessionEnded({ deviceId: current.deviceId, sessionId: current.id, error: `Location updates stopped: ${error.message}` });
+      }
+    })();
+    this.routeUpdate = operation;
+    try { await operation; } finally { if (this.routeUpdate === operation) this.routeUpdate = null; }
+  }
+  // Wander mode: walk real footpaths between random spots inside a circle,
+  // lingering at each one. Legs are planned while the previous spot lingers.
+  async startWander({ deviceId, latitude, longitude, radiusMeters, topSpeedMph } = {}) {
+    const center = place({ latitude, longitude, label: 'Wander area' });
+    if (!Number.isFinite(radiusMeters) || radiusMeters < 50 || radiusMeters > 3000) throw new Error('Choose a wander radius between 50 m and 3 km.');
+    if (topSpeedMph != null && !Number.isFinite(topSpeedMph)) throw new Error('Invalid walking speed.');
+    if (this.routeLocked()) throw new Error('Restore real location before wandering, or wait for the route to arrive.');
+    const id = randomUUID(), origin = { latitude: center.latitude, longitude: center.longitude };
+    const wander = { id, center: origin, radiusMeters, origin, drift: new GpsDrift({ sigma: 3, tau: 20, random: this.random }), lingerUntil: this.clock(), nextLeg: null, planning: null };
+    this.motion = null;
+    // Set before the first command so a failed start can still be resumed.
+    this.wander = wander;
+    await this.applyLocation({ deviceId, ...origin, label: 'Wandering' }, { id, distanceMeters: 0 }, {
+      mode: 'walk', realistic: true, topSpeedMph: clampSpeedMph('walk', topSpeedMph ?? MODES.walk.defaultMph), remainingSeconds: null,
+      extra: { kind: 'wander', center: origin, radiusMeters, phase: 'lingering', walkedMeters: 0, spotsVisited: 0 },
+    });
+    if (this.closing || this.suspended || this.state.session?.status !== 'active' || this.state.route?.status !== 'starting') return this.snapshot();
+    this.state.route.status = 'running';
+    this.state.route.message = this.routeRunningMessage();
+    this.routeStepAt = this.clock();
+    this.planWanderLeg();
+    this.scheduleRouteTick(); this.notify(); return this.snapshot();
+  }
+  randomPointInWander(wander) {
+    // Uniform over the disc; at least 40 m from the current spot so each walk goes somewhere.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const r = wander.radiusMeters * Math.sqrt(this.random()), angle = 2 * Math.PI * this.random();
+      const target = offsetPoint(wander.center, r * Math.cos(angle), r * Math.sin(angle));
+      if (distanceBetween([wander.origin.longitude, wander.origin.latitude], [target.longitude, target.latitude]) >= Math.min(40, wander.radiusMeters / 2)) return target;
+    }
+    return offsetPoint(wander.center, wander.radiusMeters / 2, 0);
+  }
+  planWanderLeg() {
+    const wander = this.wander;
+    if (!wander || wander.planning || wander.nextLeg) return;
+    const from = wander.origin;
+    wander.planning = (async () => {
+      let target = this.randomPointInWander(wander);
+      for (let attempt = 0; attempt < 4 && this.wander === wander; attempt++) {
+        try {
+          const planned = await this.router.plan([{ ...from, label: 'Here' }, { ...target, label: 'Next spot' }], { mode: 'walk' });
+          const path = measurePath(planned.coordinates);
+          const limit = wander.radiusMeters * 1.5 + 50;
+          // Footpaths can detour; keep walks that stay near the area.
+          if (planned.coordinates.every(([lon, lat]) => distanceBetween([wander.center.longitude, wander.center.latitude], [lon, lat]) <= limit)) {
+            wander.nextLeg = { path, profile: planned.profile, offline: false }; return;
+          }
+        } catch (error) {
+          if (/Wait a second/.test(error.message)) { await sleep(1100); continue; }
+        }
+        target = this.randomPointInWander(wander);
+      }
+      // Offline or no usable footpath: walk straight to a spot inside the area.
+      if (this.wander === wander) wander.nextLeg = { path: measurePath([[from.longitude, from.latitude], [target.longitude, target.latitude]]), profile: null, offline: true };
+    })().finally(() => { wander.planning = null; });
+    return wander.planning;
+  }
+  wanderStep(route, seconds) {
+    const wander = this.wander;
+    if (route.phase === 'walking' && this.motion) {
+      const step = this.motion.step(seconds);
+      Object.assign(route, { traveledMeters: step.distance, speedMph: step.speedMps / MPS_PER_MPH, waiting: step.waiting });
+      if (!this.motion.done) return step.point;
+      // Reached the spot: linger there with natural drift, and plan the next walk.
+      route.walkedMeters += route.distanceMeters; route.spotsVisited += 1;
+      Object.assign(route, { phase: 'lingering', speedMph: 0, waiting: false });
+      wander.origin = { latitude: step.point.latitude, longitude: step.point.longitude };
+      const [low, high] = WANDER_LINGER_SECONDS;
+      wander.lingerUntil = this.clock() + (low + (high - low) * this.random()) * 1000;
+      wander.drift = new GpsDrift({ sigma: 3, tau: 20, random: this.random });
+      this.motion = null;
+      route.message = this.routeRunningMessage();
+      this.planWanderLeg();
+      return step.point;
+    }
+    wander.drift.step(seconds);
+    const point = wander.drift.apply(wander.origin);
+    Object.assign(route, { speedMph: 0, waiting: false });
+    if (this.clock() >= wander.lingerUntil) {
+      if (wander.nextLeg) {
+        const leg = wander.nextLeg; wander.nextLeg = null;
+        this.routePath = leg.path;
+        this.motion = new Motion(leg.path, leg.profile, { mode: 'walk', realistic: true, topSpeedMph: route.topSpeedMph, random: this.random });
+        Object.assign(route, { phase: 'walking', distanceMeters: leg.path.distanceMeters, traveledMeters: 0 });
+        route.message = leg.offline ? 'Walking straight to the next spot; footpaths are unavailable right now.' : this.routeRunningMessage();
+      } else this.planWanderLeg();
+    }
+    return point;
   }
   async saveRoute({ name } = {}) {
     if (!this.library) throw new Error('Saved routes are unavailable.');
@@ -668,6 +845,19 @@ export class Controller extends EventEmitter {
       if (!['system', 'dark', 'light'].includes(input.theme)) throw new Error('Invalid theme.');
       this.state.preferences.theme = input.theme;
     }
+    if (input.drift != null) {
+      if (!Object.hasOwn(DRIFT_LEVELS, input.drift)) throw new Error('Invalid drift setting.');
+      this.state.preferences.drift = input.drift;
+    }
+    if (input.notifications != null) {
+      if (typeof input.notifications !== 'object') throw new Error('Invalid notification settings.');
+      const next = { ...this.state.preferences.notifications };
+      for (const [key, value] of Object.entries(input.notifications)) {
+        if (!['enabled', ...NOTIFICATION_TYPES].includes(key) || typeof value !== 'boolean') throw new Error('Invalid notification setting.');
+        next[key] = value;
+      }
+      this.state.preferences.notifications = next;
+    }
     if (input.routeMode != null) {
       if (!MODES[input.routeMode]) throw new Error('Invalid travel mode.');
       this.state.preferences.routeMode = input.routeMode;
@@ -690,11 +880,24 @@ export class Controller extends EventEmitter {
       const dismissed = this.state.preferences.dismissedWifiPrompts || [];
       this.state.preferences.dismissedWifiPrompts = [input.dismissWifiPrompt, ...dismissed.filter(id => id !== input.dismissWifiPrompt)].slice(0, 20);
     }
-    await this.persist(); this.notify(); return this.snapshot();
+    await this.persist();
+    if (input.drift != null) await this.applyDriftPreference();
+    this.notify(); return this.snapshot();
+  }
+  // A new drift level takes effect at once; Off returns the phone to the exact anchor.
+  async applyDriftPreference() {
+    const current = this.state.session;
+    if (current?.status !== 'active' || !current.anchor || this.routeLocked()) return;
+    if (this.driftSigma()) { if (this.drift) this.drift.sigma = this.driftSigma(); else this.startDrift(current); return; }
+    this.stopDrift();
+    while (this.routeUpdate) await this.routeUpdate.catch(() => {});
+    await this.sendHeldPoint(current, { ...current.anchor });
+    current.message = current.platform === 'ios' ? 'Sending the selected location every second while the phone stays connected.' : 'The phone helper sends the selected location every two seconds.';
   }
   async dispose(options) {
     this.closing = true; this.resumeSessionId = null;
     this.pauseRouteMotion();
+    this.stopDrift();
     if (this.routeUpdate) await this.routeUpdate.catch(() => {});
     if (this.scanning) await this.scanning.catch(() => {});
     await Promise.allSettled(Object.values(this.adapters).map(adapter => adapter.dispose(options)));

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('wraith', Object.freeze({
   startRoute: value => invoke('startRoute', value),
   pauseRoute: () => invoke('pauseRoute'),
   resumeRoute: () => invoke('resumeRoute'),
+  startWander: value => invoke('startWander', value),
   updateRouteOptions: value => invoke('updateRouteOptions', value),
   saveRoute: value => invoke('saveRoute', value),
   loadSavedRoute: id => invoke('loadSavedRoute', id),

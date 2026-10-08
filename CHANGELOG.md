@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add natural drift for held places: the reported location wanders slowly by a few metres around the exact spot, like real GPS. Choose Off, Subtle (default) or Normal in Settings. It also applies at a route's destination after arrival.
+- Add wander mode: walk real footpaths between random spots inside a circle, lingering 30 seconds to 3 minutes at each, with an adjustable radius and walking pace. Falls back to straight lines when routing is unavailable.
+- Add desktop notifications for route arrival, a phone needing attention, a route pausing itself and a phone reconnecting, each with its own switch plus a master switch. Shown only when Wraith isn't the active window.
+- Restart drift after switching a held place to Wi-Fi.
+- Resolve six Dependabot alerts in build tools (shell-quote, source-map-js, brace-expansion, http-cache-semantics).
+- Add `.env.example` for local development keys.
+
 ## 0.2.1
 
 - Fix a main-process error dialog when switching between dark and light themes on Windows.

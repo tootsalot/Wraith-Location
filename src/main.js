@@ -99,6 +99,7 @@ let routeStops = [], routePlan = null;
 let routeLine = null, routeCasing = null, routeDot = null;
 const routeMarkers = [];
 let routeMode = 'drive', realisticMotion = true, routeSpeeds = { drive: 70, bike: 14, walk: 3.2 };
+let wanderRadius = 300, wanderCircle = null;
 let preferencesApplied = false, lastRouteId = null, lastLocked = false, draggedStop = null;
 let planPath = null, estimateCache = null, tickCache = null;
 let autoOnboarding = false;
@@ -142,7 +143,7 @@ $('#app').innerHTML = `
     <aside class="control-panel">
       <div class="panel-scroll">
         <div id="wifi-prompt" class="wifi-prompt" hidden><strong>Switch to Wi-Fi?</strong><p>Your phone is working over USB and this computer has Wi-Fi. Keep both on the same network and leave the cable connected until Wraith confirms.</p><p id="wifi-prompt-android" hidden>This enables network debugging on Android. Use a trusted network; restart the phone to turn it off.</p><div><button id="wifi-prompt-switch" class="secondary-button compact">Switch to Wi-Fi</button><button id="wifi-prompt-dismiss" class="text-button">Stay on USB</button></div></div>
-        <div class="location-modes" role="group" aria-label="Location type"><button data-location-mode="fixed" aria-pressed="true">Place</button><button data-location-mode="route" aria-pressed="false">Route</button></div>
+        <div class="location-modes" role="group" aria-label="Location type"><button data-location-mode="fixed" aria-pressed="true">Place</button><button data-location-mode="route" aria-pressed="false">Route</button><button data-location-mode="wander" aria-pressed="false">Wander</button></div>
 
         <section id="place-section" class="panel-section" aria-labelledby="destination-label">
           <div class="section-heading"><h2 id="destination-label">Location</h2><button id="save-button" class="icon-button" aria-label="Save selected place" title="Save place" disabled>${icon('bookmark')}</button></div>
@@ -171,6 +172,22 @@ $('#app').innerHTML = `
           </div>
           <button id="route-play" class="primary-button" disabled>Start route</button>
           <p id="route-hint" class="action-hint">Add a start and destination, in order.</p>
+        </section>
+
+        <section id="wander-section" class="panel-section" aria-labelledby="wander-label" hidden>
+          <div class="section-heading"><h2 id="wander-label">Area</h2></div>
+          <div id="wander-center"></div>
+          <div id="wander-pin-slot"></div>
+          <p class="route-tip">Click the map, search or type coordinates to set the centre. Wraith walks real footpaths between random spots inside the circle and lingers a little at each.</p>
+          <div class="wander-settings">
+            <div class="speed-row"><label for="wander-radius">Radius</label><output id="wander-radius-value" for="wander-radius"></output></div>
+            <input id="wander-radius" class="speed-slider" type="range" min="50" max="2000" step="25" value="300" />
+            <div class="speed-row"><label for="wander-speed">Walking pace</label><output id="wander-speed-value" for="wander-speed"></output></div>
+            <input id="wander-speed" class="speed-slider" type="range" min="1" max="8" step="0.1" />
+          </div>
+          <button id="wander-start" class="primary-button" disabled>Start wandering</button>
+          <p id="wander-hint" class="action-hint">Choose a centre on the map.</p>
+          <p class="route-provider">Each walk asks the public routing service for a footpath. Without internet, Wraith walks in straight lines inside the circle.</p>
         </section>
 
         <section id="library-view" class="library-view" aria-labelledby="library-title">
@@ -249,6 +266,16 @@ $('#app').innerHTML = `
     <div class="sheet-heading"><div><span class="eyebrow">Wraith</span><h2 id="settings-title">Settings</h2></div><button class="icon-button" data-close="settings-dialog" aria-label="Close settings">${icon('x')}</button></div>
     <div class="settings-group"><h3>Appearance</h3><div class="location-modes" role="group" aria-label="Theme"><button data-theme-choice="system">Match system</button><button data-theme-choice="dark">Dark</button><button data-theme-choice="light">Light</button></div></div>
     <div class="settings-group"><h3>Device setup</h3><div class="configuration-row"><div><strong id="settings-configuration">No setup selected</strong><small>Wraith uses this to show the right connection steps.</small></div><button id="rerun-onboarding" class="secondary-button compact">Change</button></div></div>
+    <div class="settings-group"><h3>Natural drift</h3><div class="location-modes" role="group" aria-label="Natural drift"><button data-drift-choice="off">Off</button><button data-drift-choice="subtle">Subtle</button><button data-drift-choice="normal">Normal</button></div><p class="settings-note">A held place moves a few metres, like real GPS on a phone that isn't moving: about 2–3 m when subtle, about 5 m when normal.</p></div>
+    <div class="settings-group"><h3>Notifications</h3>
+      <label class="setting-row"><span><strong>Desktop notifications</strong><small>Shown when Wraith isn't the active window.</small></span><input type="checkbox" class="switch" data-notify="enabled" /></label>
+      <div class="notify-events">
+        <label class="setting-row"><span><strong>Route arrived</strong></span><input type="checkbox" class="switch" data-notify="arrived" /></label>
+        <label class="setting-row"><span><strong>Phone needs attention</strong><small>Disconnected, or the location couldn't be confirmed.</small></span><input type="checkbox" class="switch" data-notify="attention" /></label>
+        <label class="setting-row"><span><strong>Route paused itself</strong><small>Updates fell behind or the connection was slow.</small></span><input type="checkbox" class="switch" data-notify="autoPaused" /></label>
+        <label class="setting-row"><span><strong>Phone reconnected</strong></span><input type="checkbox" class="switch" data-notify="reconnected" /></label>
+      </div>
+    </div>
     <div class="settings-group"><h3>Location sessions</h3><label class="setting-row"><span><strong>Restore on quit</strong><small>Wraith tries to stop location simulation before it closes. Keep the phone connected.</small></span><input id="restore-preference" type="checkbox" class="switch" /></label></div>
     <div class="settings-group"><h3>Device tools</h3><div id="runtime-status"></div><button id="install-runtime" class="secondary-button">${icon('download')} Prepare device tools</button><p class="settings-note">First-time preparation may need an internet connection.</p></div>
     <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form><div class="settings-footer">Wraith ${version}. Free and open source under GPL-3.0.</div>
@@ -302,7 +329,7 @@ function acceptState(next) {
   // Jump to Route mode once when a route starts, without trapping the user there after arrival.
   const routeId = state.route?.id || null;
   if (routeId && routeId !== lastRouteId) {
-    locationMode = 'route';
+    locationMode = state.route.kind === 'wander' ? 'wander' : 'route';
     if (MODES[state.route.mode]) routeMode = state.route.mode;
     if (typeof state.route.realistic === 'boolean') realisticMotion = state.route.realistic;
     if (Number.isFinite(state.route.topSpeedMph)) routeSpeeds[routeMode] = state.route.topSpeedMph;
@@ -365,6 +392,7 @@ function selectPlace(place, fly = true) {
   renderDestination();
   renderActions();
   renderRoute();
+  drawWander();
   paintIcons();
 }
 
@@ -463,9 +491,21 @@ function moveStop(from, to) {
   if (from === to || from < 0 || to < 0 || from >= routeStops.length || to >= routeStops.length) return;
   const [stop] = routeStops.splice(from, 1); routeStops.splice(to, 0, stop); stopsChanged();
 }
+// The wander circle follows the active wander, or the selected centre while planning one.
+function drawWander() {
+  const active = state.route?.kind === 'wander' && state.session ? state.route : null;
+  const center = active ? active.center : selectedPlace;
+  const radius = active ? active.radiusMeters : wanderRadius;
+  if (locationMode !== 'wander' || !center) { wanderCircle?.remove(); wanderCircle = null; return; }
+  const latlng = [center.latitude, center.longitude];
+  if (!wanderCircle) wanderCircle = L.circle(latlng, { radius, className: 'wander-area', interactive: false }).addTo(map);
+  else { wanderCircle.setLatLng(latlng); wanderCircle.setRadius(radius); }
+}
+function fitWander() { if (wanderCircle) map.fitBounds(wanderCircle.getBounds(), { padding: [60, 60], maxZoom: 17 }); }
 function drawRoute() {
   routeLine?.remove(); routeCasing?.remove(); routeLine = routeCasing = null;
   routeMarkers.splice(0).forEach(item => item.remove());
+  drawWander();
   if (locationMode !== 'route') return;
   if (routePlan) {
     const latlngs = routePlan.coordinates.map(([lon, lat]) => [lat, lon]);
@@ -525,7 +565,8 @@ function signalTicks() {
   return tickCache.ticks;
 }
 function renderRoute() {
-  const route = state.route, active = Boolean(route && state.session), locked = routeLocked(), inRoute = locationMode === 'route';
+  const route = state.route, active = Boolean(route && state.session), locked = routeLocked(), inRoute = locationMode === 'route', inWander = locationMode === 'wander';
+  const lockedMode = locked ? (route.kind === 'wander' ? 'wander' : 'route') : null;
   const busy = pending || state.busy;
   const panel = $('.control-panel'), wasLocked = panel.classList.contains('route-active');
   panel.classList.toggle('route-active', locked);
@@ -533,18 +574,20 @@ function renderRoute() {
   if (marker) {
     // A pin that has become a stop is already drawn as a numbered marker.
     const pinIsStop = inRoute && selectedPlace && routeStops.some(stop => stop.latitude === selectedPlace.latitude && stop.longitude === selectedPlace.longitude);
-    const hide = locked || (active && inRoute) || pinIsStop;
+    const hide = locked || (active && (inRoute || inWander)) || pinIsStop;
     if (hide && map.hasLayer(marker)) marker.remove();
     if (!hide && !map.hasLayer(marker)) marker.addTo(map);
   }
   $('#route-controls').hidden = !inRoute;
-  $('#place-section').hidden = inRoute;
+  $('#wander-section').hidden = !inWander;
+  $('.control-panel').classList.toggle('wander-active', lockedMode === 'wander');
+  $('#place-section').hidden = inRoute || inWander;
   // One coordinate form serves both modes: it picks the place, or the next stop.
-  const slot = $(inRoute ? '#route-pin-slot' : '#place-pin-slot');
+  const slot = $(inRoute ? '#route-pin-slot' : inWander ? '#wander-pin-slot' : '#place-pin-slot');
   if ($('#coordinate-form').parentElement !== slot) slot.append($('#coordinate-form'));
   document.querySelectorAll('[data-location-mode]').forEach(button => {
     button.setAttribute('aria-pressed', String(button.dataset.locationMode === locationMode));
-    button.disabled = busy || (locked && button.dataset.locationMode === 'fixed');
+    button.disabled = busy || (locked && button.dataset.locationMode !== lockedMode);
   });
   const mode = playbackMode();
   document.querySelectorAll('[data-travel-mode]').forEach(button => {
@@ -588,7 +631,8 @@ function renderRoute() {
   const completed = route?.status === 'completed' && active;
   $('#route-hint').textContent = locked ? route.message : otherSession ? 'Restore the current session before switching phones.' : completed && routePlan?.id === route.id ? route.message : !routePlan ? routeStops.length < 2 ? 'Add a start and destination, then plan the route.' : 'Plan the route to see the path and travel time.' : !device ? 'Connect a phone to start. The route is ready.' : 'Start moves your phone to the first stop, then follows the path.';
   renderSavedRoutes(busy);
-  if (route?.point && inRoute) {
+  renderWander(busy, lockedMode);
+  if (route?.point && (inRoute || inWander)) {
     const point = [route.point.latitude, route.point.longitude];
     if (!routeDot) routeDot = L.circleMarker(point, { radius: 8, weight: 3, fillOpacity: 1, className: 'route-location-dot', interactive: false }).addTo(map);
     else routeDot.setLatLng(point);
@@ -596,6 +640,26 @@ function renderRoute() {
   } else if (routeDot) { routeDot.remove(); routeDot = null; }
 }
 
+function renderWander(busy, lockedMode) {
+  const route = state.route, wandering = lockedMode === 'wander';
+  const center = wandering ? route.center : selectedPlace;
+  setContent('#wander-center', center
+    ? `<div class="destination-name">${icon('footprints')}<div><strong>${esc(wandering ? 'Wandering here' : center.label || 'Dropped pin')}</strong><span>${formatCoordinate(center.latitude)}, ${formatCoordinate(center.longitude, false)}</span></div></div>`
+    : `<div class="destination-empty">${icon('footprints')}<div><strong>No centre yet</strong><span>Click the map to choose where to wander.</span></div></div>`);
+  const radius = wandering ? route.radiusMeters : wanderRadius;
+  if (document.activeElement !== $('#wander-radius')) $('#wander-radius').value = radius;
+  $('#wander-radius-value').textContent = radius >= 1000 ? `${(radius / 1000).toFixed(radius % 1000 ? 2 : 0)} km` : `${radius} m`;
+  const pace = wandering ? route.topSpeedMph : clampSpeedMph('walk', routeSpeeds.walk);
+  if (document.activeElement !== $('#wander-speed')) $('#wander-speed').value = pace;
+  $('#wander-speed-value').textContent = speedText(pace);
+  $('#wander-radius').disabled = busy || wandering;
+  const device = state.devices.find(d => d.id === selectedDeviceId);
+  const otherSession = state.session && state.session.deviceId !== selectedDeviceId;
+  const running = route?.status === 'running', paused = route?.status === 'paused';
+  $('#wander-start').disabled = busy || (wandering ? !running && !paused : Boolean(lockedMode) || !selectedPlace || device?.state !== 'ready' || Boolean(otherSession));
+  $('#wander-start').textContent = busy ? 'Working…' : wandering && running ? 'Pause wandering' : wandering && paused ? 'Resume wandering' : 'Start wandering';
+  $('#wander-hint').textContent = wandering ? route.message : otherSession ? 'Restore the current session before switching phones.' : !selectedPlace ? 'Choose a centre on the map.' : !device ? 'Connect a phone to start.' : 'Start moves your phone to the centre, then begins walking.';
+}
 function renderDock() {
   const session = state.session, route = state.route;
   const dock = $('#session-dock');
@@ -624,16 +688,30 @@ function renderDock() {
     if (route.limitMph) $('#speed-limit').textContent = `Limit ${route.limitPosted ? '' : '~'}${Math.round(route.limitMph)}`;
     $('#timeline-fill').style.width = `${progress * 100}%`;
     $('#timeline-head').style.left = `${progress * 100}%`;
-    const shown = routePlan?.id === route.id;
-    const stops = shown ? routeStops : [];
-    $('#timeline-start').textContent = stops[0]?.label || 'Start';
-    $('#timeline-end').textContent = stops.at(-1)?.label || 'Destination';
-    $('#timeline-state').textContent = route.status === 'completed' ? 'Arrived' : route.status === 'paused' ? 'Paused' : route.status === 'starting' ? 'Starting…' : route.waiting ? 'Waiting at a light' : MODES[route.mode]?.verb || 'Moving';
-    setContent('#timeline-ticks', (shown ? signalTicks() : []).map(at => `<i class="timeline-tick${at <= progress ? ' passed' : ''}" style="left:${(at * 100).toFixed(2)}%"></i>`).join(''));
-    $('#eta-time').textContent = route.status === 'completed' ? 'Arrived' : `${routeTime(route.remainingSeconds || 0)}`;
-    $('#eta-distance').textContent = route.status === 'completed' ? miles(route.distanceMeters) : `${miles(Math.max(0, route.distanceMeters - (route.traveledMeters || 0)))} left`;
+    if (route.kind === 'wander') {
+      // Wandering has no destination: the bar shows the current walk and totals instead.
+      const walking = route.phase === 'walking';
+      $('#timeline-fill').style.width = `${walking ? progress * 100 : 0}%`;
+      $('#timeline-head').style.left = `${walking ? progress * 100 : 0}%`;
+      $('#timeline-start').textContent = 'Wander';
+      $('#timeline-end').textContent = `${route.spotsVisited} spot${route.spotsVisited === 1 ? '' : 's'} visited`;
+      $('#timeline-state').textContent = route.status === 'paused' ? 'Paused' : route.status === 'starting' ? 'Starting…' : walking ? 'Walking to a spot' : 'Lingering';
+      setContent('#timeline-ticks', '');
+      $('#eta-time').textContent = miles(route.walkedMeters + (walking ? route.traveledMeters || 0 : 0));
+      $('#eta-distance').textContent = 'walked';
+    } else {
+      const shown = routePlan?.id === route.id;
+      const stops = shown ? routeStops : [];
+      $('#timeline-start').textContent = stops[0]?.label || 'Start';
+      $('#timeline-end').textContent = stops.at(-1)?.label || 'Destination';
+      $('#timeline-state').textContent = route.status === 'completed' ? 'Arrived' : route.status === 'paused' ? 'Paused' : route.status === 'starting' ? 'Starting…' : route.waiting ? 'Waiting at a light' : MODES[route.mode]?.verb || 'Moving';
+      setContent('#timeline-ticks', (shown ? signalTicks() : []).map(at => `<i class="timeline-tick${at <= progress ? ' passed' : ''}" style="left:${(at * 100).toFixed(2)}%"></i>`).join(''));
+      $('#eta-time').textContent = route.status === 'completed' ? 'Arrived' : `${routeTime(route.remainingSeconds || 0)}`;
+      $('#eta-distance').textContent = route.status === 'completed' ? miles(route.distanceMeters) : `${miles(Math.max(0, route.distanceMeters - (route.traveledMeters || 0)))} left`;
+    }
   }
   if (wasHidden && locationMode === 'route' && routeLine) requestAnimationFrame(fitRoute);
+  if (wasHidden && locationMode === 'wander' && wanderCircle) requestAnimationFrame(fitWander);
 }
 
 function renderSaved() {
@@ -668,7 +746,7 @@ function renderSession() {
   const recovering = ['waiting', 'unknown', 'error'].includes(session.status);
   const recoveryText = recovering ? `<span class="session-recovery">${session.autoReconnect ? 'Wraith will retry this phone automatically. Restore cancels retry.' : 'Reconnect this phone, then retry or restore.'}</span>` : '';
   const statusIcon = session.status === 'reconnecting' ? 'refresh-cw' : recovering ? 'help-circle' : 'map-pin';
-  const title = state.route && session.status === 'active' ? ({ running: 'Following route', paused: 'Route paused', completed: 'Arrived', starting: 'Starting route…' }[state.route.status]) : labels[session.status] || 'Session needs attention';
+  const title = state.route?.kind === 'wander' && session.status === 'active' ? (state.route.status === 'paused' ? 'Wandering paused' : 'Wandering') : state.route && session.status === 'active' ? ({ running: 'Following route', paused: 'Route paused', completed: 'Arrived', starting: 'Starting route…' }[state.route.status]) : labels[session.status] || 'Session needs attention';
   setContent('#session-status', `<span class="session-status-icon">${icon(statusIcon, session.status === 'reconnecting' ? 'spin' : '')}</span><div><strong>${title}</strong><span>${esc(state.route?.message || session.message || session.label || 'Keep your phone connected.')}</span>${recoveryText}${refreshText}</div>${session.status === 'active' ? '<span class="live-tag"><span></span>Live</span>' : ''}`);
 }
 
@@ -680,6 +758,13 @@ function renderRuntime() {
   $('#install-runtime').disabled = pending || state.busy || isPreview;
   setContent('#install-runtime', `${icon(pending ? 'loader-circle' : 'download', pending ? 'spin' : '')} ${pending ? 'Preparing…' : isPreview ? 'Available in the desktop app' : 'Prepare device tools'}`);
   if (document.activeElement !== $('#restore-preference')) $('#restore-preference').checked = state.preferences.restoreOnQuit !== false;
+  const drift = state.preferences.drift || 'subtle';
+  document.querySelectorAll('[data-drift-choice]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.driftChoice === drift)));
+  const notifications = state.preferences.notifications || {};
+  document.querySelectorAll('[data-notify]').forEach(input => {
+    if (document.activeElement !== input) input.checked = notifications[input.dataset.notify] !== false;
+    if (input.dataset.notify !== 'enabled') input.disabled = notifications.enabled === false;
+  });
   const selectedGuide = state.preferences.hostPlatform && state.preferences.phonePlatform ? guideFor(state.preferences.hostPlatform, state.preferences.phonePlatform) : null;
   $('#settings-configuration').textContent = selectedGuide?.title || 'No setup selected';
 }
@@ -810,6 +895,7 @@ map.on('click', (event) => {
     if (!routeLocked()) addRouteStop({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' });
     return;
   }
+  if (locationMode === 'wander' && routeLocked()) return;
   selectPlace({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' }, false);
 });
 map.on('moveend', () => { const center = map.getCenter().wrap(); $('#map-coordinates').textContent = `${formatCoordinate(center.lat)}, ${formatCoordinate(center.lng, false)}`; });
@@ -826,6 +912,8 @@ $('#phone-chip').onclick = (event) => { event.stopPropagation(); if ($('#phone-p
 document.addEventListener('pointerdown', (event) => { if (!$('#phone-popover').hidden && !event.target.closest('#phone-popover, #phone-chip')) closePhonePopover(); });
 $('#help-button').onclick = openSetup;
 $('#settings-button').onclick = () => { $('#provider-url').value = state.preferences.geocoderUrl || 'https://photon.komoot.io/api/'; renderRuntime(); applyTheme(); paintIcons(true); $('#settings-dialog').showModal(); };
+document.querySelectorAll('[data-drift-choice]').forEach(button => { button.onclick = () => runOperation(() => api.updatePreferences({ drift: button.dataset.driftChoice })); });
+document.querySelectorAll('[data-notify]').forEach(input => { input.onchange = () => runOperation(() => api.updatePreferences({ notifications: { [input.dataset.notify]: input.checked } })); });
 document.querySelectorAll('[data-theme-choice]').forEach(button => { button.onclick = () => runOperation(() => api.updatePreferences({ theme: button.dataset.themeChoice })); });
 $('#scan-button').onclick = () => runOperation(() => api.scanDevices(), 'Phone list refreshed.');
 $('#setup-scan').onclick = async () => { const result = await runOperation(() => api.scanDevices()); if (result && !result.devices.some((device) => device.platform === setupPlatform && device.state !== 'offline')) $('#setup-detection').textContent = `No ${platformName(setupPlatform)} found. Check the data cable, unlock the phone, and accept its prompt.`; };
@@ -871,6 +959,26 @@ $('#plan-route').onclick = async () => {
 const playRoute = () => runOperation(() => state.route?.status === 'running' && routeLocked() ? api.pauseRoute() : state.route?.status === 'paused' && routeLocked() ? api.resumeRoute()
   : api.startRoute({ deviceId: selectedDeviceId, routeId: routePlan?.id, mode: playbackMode(), realistic: realisticMotion, topSpeedMph: clampSpeedMph(playbackMode(), routeSpeeds[playbackMode()]) }));
 $('#route-play').onclick = playRoute;
+$('#wander-start').onclick = () => {
+  const route = state.route;
+  if (route?.kind === 'wander' && routeLocked()) { playRoute(); return; }
+  if (!selectedPlace) return;
+  runOperation(() => api.startWander({ deviceId: selectedDeviceId, latitude: selectedPlace.latitude, longitude: selectedPlace.longitude, radiusMeters: wanderRadius, topSpeedMph: clampSpeedMph('walk', routeSpeeds.walk) }));
+};
+$('#wander-radius').oninput = () => {
+  wanderRadius = Number($('#wander-radius').value);
+  drawWander(); renderRoute(); paintIcons();
+};
+$('#wander-radius').onchange = fitWander;
+$('#wander-speed').oninput = () => {
+  routeSpeeds.walk = clampSpeedMph('walk', Number($('#wander-speed').value));
+  $('#wander-speed-value').textContent = speedText(routeSpeeds.walk);
+  clearTimeout(speedTimer);
+  speedTimer = setTimeout(() => {
+    savePreferences({ routeSpeeds: { walk: routeSpeeds.walk } });
+    if (state.route?.kind === 'wander' && routeLocked()) api.updateRouteOptions({ topSpeedMph: routeSpeeds.walk }).then(acceptState).catch(error => notify(error.message, true));
+  }, 250);
+};
 $('#dock-play').onclick = playRoute;
 $('#route-from-here').onclick = () => {
   const session = state.session;
