@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add optional Geoapify keys. Paste your own free key under **Free API keys** in Settings; Wraith tests it, then stores it encrypted with the system's secure storage. With a key, place search uses Geoapify (falling back to Photon) and dropped pins get a real address when set or saved. Settings shows roughly how many of the 3,000 daily credits have been used, warns at 80%, and switches to the free services at the limit or on a rate limit. "Powered by Geoapify" appears on the map and under search results while a key is set. See `docs/api-keys.md`.
 - Add natural drift for held places: the reported location wanders slowly by a few metres around the exact spot, like real GPS. Choose Off, Subtle (default) or Normal in Settings. It also applies at a route's destination after arrival.
 - Add wander mode: walk real footpaths between random spots inside a circle, lingering 30 seconds to 3 minutes at each, with an adjustable radius and walking pace. Falls back to straight lines when routing is unavailable.
 - Add desktop notifications for route arrival, a phone needing attention, a route pausing itself and a phone reconnecting, each with its own switch plus a master switch. Shown only when Wraith isn't the active window.

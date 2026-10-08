@@ -98,6 +98,15 @@ When Wraith isn't the window in front, it can show a desktop notification when a
 arrives, a phone needs attention, a route pauses itself, or a phone reconnects. Each
 can be switched off under **Notifications** in Settings.
 
+### Optional API keys
+
+Wraith works without any key. A free [Geoapify](https://www.geoapify.com/) key,
+added under **Free API keys** in Settings, gives better place search and real names
+for dropped pins, within a free allowance of 3,000 credits a day. Wraith uses it
+only when you search, or set or save a pin. It shows roughly how many credits it has
+used today, and switches back to the free services at the limit. See
+[docs/api-keys.md](docs/api-keys.md).
+
 ### Appearance
 
 Wraith follows your system's light or dark setting. Choose **Dark** or **Light** in
@@ -146,11 +155,13 @@ It contacts these services only:
 | --- | --- | --- |
 | OpenStreetMap tiles | While the map is visible | Map tile requests |
 | Photon (komoot) | When you submit a search | Your search text |
+| Geoapify, only if you add a key | When you submit a search, or set or save a dropped pin | Your search text or the pin's coordinates, with your key |
 | Valhalla (FOSSGIS), with OSRM as fallback | When you press **Plan route**, and for each walk in wander mode | Stop coordinates, then the planned path for road data |
 
 Playing a route, saved routes and GPX files make no online requests. The public
 Photon, Valhalla and OSRM services are free for reasonable use, with no uptime
-guarantee; you can point search at another Photon server in Settings. See
+guarantee; you can point search at another Photon server in Settings. Geoapify is
+used only with your own key and never with results cached. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Build from source
@@ -194,7 +205,7 @@ workflow artifacts.
 
 | Command | What it checks |
 | --- | --- |
-| `npm test` | Device targeting, sessions, reconnection and recovery, route planning and fallback, realistic motion, playback timing, saved routes and GPX |
+| `npm test` | Device targeting, sessions, reconnection and recovery, route planning and fallback, realistic motion, playback timing, saved routes and GPX, optional API keys and the credit meter |
 | `npm run test:renderer-session` | The interface against a fake phone: controls stay stable through live updates, and routes plan, start, pause and resume |
 | `npm run test:native` | The real app with read-only phone discovery, live search and route planning. It never sets or restores a location |
 | `npm run test:ios-stream` | The iPhone bridge end to end, with only the phone connection simulated |

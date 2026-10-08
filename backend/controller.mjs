@@ -16,7 +16,7 @@ export class Controller extends EventEmitter {
   constructor({ adapters, store, library = null, now = Date.now, router = new Router(), clock = () => performance.now(), network = async () => ({wifi: false}), random = Math.random }) {
     super(); this.adapters = adapters; this.store = store; this.library = library; this.random = random;
     // `loaded` tells the interface that preferences are real, not constructor defaults.
-    this.state = { loaded: false, devices: [], runtime: {}, session: null, savedPlaces: [], recentPlaces: [], savedRoutes: [], preferences: {}, busy: false, warning: null };
+    this.state = { loaded: false, devices: [], runtime: {}, session: null, savedPlaces: [], recentPlaces: [], savedRoutes: [], preferences: {}, providers: null, busy: false, warning: null };
     this.scanning = null;
     this.now = now; this.network = network; this.networkCheckedAt = -Infinity;
     this.resumeSessionId = null;
@@ -57,6 +57,12 @@ export class Controller extends EventEmitter {
     return this.scanDevices();
   }
   snapshot() { return structuredClone(this.state); }
+  // Optional API key status (never the key itself) and its notices, such as the usage warning.
+  setProviders(status, notice = null) {
+    this.state.providers = status;
+    if (notice) this.state.warning = notice;
+    this.notify();
+  }
   notify() { this.emit('state', this.snapshot()); }
   async persist() {
     const { savedPlaces, recentPlaces, session, preferences } = this.state;

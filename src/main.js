@@ -278,7 +278,13 @@ $('#app').innerHTML = `
     </div>
     <div class="settings-group"><h3>Location sessions</h3><label class="setting-row"><span><strong>Restore on quit</strong><small>Wraith tries to stop location simulation before it closes. Keep the phone connected.</small></span><input id="restore-preference" type="checkbox" class="switch" /></label></div>
     <div class="settings-group"><h3>Device tools</h3><div id="runtime-status"></div><button id="install-runtime" class="secondary-button">${icon('download')} Prepare device tools</button><p class="settings-note">First-time preparation may need an internet connection.</p></div>
-    <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form><div class="settings-footer">Wraith ${version}. Free and open source under GPL-3.0.</div>
+    <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap. With a Geoapify key, search uses Geoapify and falls back to this endpoint.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form>
+    <div class="settings-group"><h3>Free API keys</h3>
+      <p class="settings-note keys-intro">Optional. Wraith works without a key. A free <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> key gives better place search and real names for dropped pins.</p>
+      <div id="geoapify-status"></div>
+      <form id="geoapify-form" class="key-form"><label class="field-label" for="geoapify-key">Geoapify API key</label><div class="key-input-row"><input id="geoapify-key" class="text-input" type="password" autocomplete="off" spellcheck="false" maxlength="64" placeholder="Paste your key" required /><button id="geoapify-save" type="submit" class="secondary-button compact">Test and save</button></div></form>
+      <p id="geoapify-help" class="settings-note">Create a free account at <a href="https://myprojects.geoapify.com/" target="_blank" rel="noreferrer">myprojects.geoapify.com</a>, add a project and copy its API key. The free plan includes 3,000 credits a day and needs no credit card; a search or a pin name uses 1 credit. Use your own key and don't share it. The key is stored only on this computer. Using Wraith for work counts as commercial use, which the free plan limits, so contact Geoapify or choose a paid plan.</p>
+    </div><div class="settings-footer">Wraith ${version}. Free and open source under GPL-3.0.</div>
   </dialog>
 
   <dialog id="save-dialog" class="small-dialog" aria-labelledby="save-title"><div class="sheet-heading"><div><span class="eyebrow">Saved place</span><h2 id="save-title">Save this place</h2></div><button class="icon-button" data-close="save-dialog" aria-label="Close save place">${icon('x')}</button></div><form id="save-form"><label class="field-label" for="place-name">Name</label><input id="place-name" class="text-input" maxlength="120" required placeholder="Place name" /><input id="place-id" type="hidden" /><p id="save-coordinates" class="settings-note"></p><button class="primary-button" type="submit"><span>Save place</span>${icon('bookmark')}</button></form></dialog>
@@ -294,6 +300,27 @@ tiles.on('tileerror', () => { if (++tileErrors >= 3) $('#map-error').hidden = fa
 tiles.on('tileload', () => { tileErrors = 0; $('#map-error').hidden = true; });
 const pinIcon = L.divIcon({ className: 'place-pin', html: '<span class="place-pin-halo"></span><span class="place-pin-head"></span>', iconSize: [40, 48], iconAnchor: [20, 44] });
 let marker = null;
+// Geoapify's free plan asks for its credit next to the map while a key is in use.
+const GEOAPIFY_CREDIT = 'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a>';
+let geoapifyCredited = false;
+function syncMapCredits() {
+  const wanted = Boolean(state.providers?.geoapify?.configured);
+  if (wanted === geoapifyCredited) return;
+  geoapifyCredited = wanted;
+  if (wanted) map.attributionControl.addAttribution(GEOAPIFY_CREDIT); else map.attributionControl.removeAttribution(GEOAPIFY_CREDIT);
+}
+// Pins with these placeholder names get a real name when applied or saved, never while dragging.
+const UNNAMED_LABELS = new Set(['Dropped pin', 'Custom coordinates']);
+async function nameSelectedPlace() {
+  const place = selectedPlace;
+  if (!place || !UNNAMED_LABELS.has(place.label) || !state.providers?.geoapify?.active) return place;
+  const named = await api.namePlace(place).catch(() => null);
+  if (!named?.label) return place;
+  const result = { ...place, label: named.label };
+  // Only the pin that was looked up takes the name; a moved pin keeps its own.
+  if (selectedPlace === place) { selectedPlace = result; renderDestination(); paintIcons(); }
+  return result;
+}
 
 function guideFor(host = setupHost, phone = setupPlatform) { return setupGuides[`${host}:${phone}`]; }
 function platformName(platform) { return platform === 'ios' ? 'iPhone' : 'Android'; }
@@ -326,6 +353,7 @@ function acceptState(next) {
     routeSpeeds = { ...routeSpeeds, ...state.preferences.routeSpeeds };
   }
   applyTheme();
+  syncMapCredits();
   // Jump to Route mode once when a route starts, without trapping the user there after arrival.
   const routeId = state.route?.id || null;
   if (routeId && routeId !== lastRouteId) {
@@ -767,6 +795,27 @@ function renderRuntime() {
   });
   const selectedGuide = state.preferences.hostPlatform && state.preferences.phonePlatform ? guideFor(state.preferences.hostPlatform, state.preferences.phonePlatform) : null;
   $('#settings-configuration').textContent = selectedGuide?.title || 'No setup selected';
+  renderKeys();
+}
+
+let replacingKey = false;
+function renderKeys() {
+  const geoapify = state.providers?.geoapify;
+  const showForm = !isPreview && (!geoapify?.configured || replacingKey);
+  $('#geoapify-form').hidden = !showForm;
+  $('#geoapify-help').hidden = !isPreview && !showForm;
+  $('#geoapify-save').disabled = pending;
+  if (isPreview || !geoapify) { setContent('#geoapify-status', isPreview ? '<p class="settings-note">API keys are available in the desktop app.</p>' : ''); return; }
+  if (!geoapify.configured) { setContent('#geoapify-status', ''); return; }
+  const used = Math.round(geoapify.credits), percent = Math.min(100, geoapify.credits / geoapify.limit * 100);
+  const resets = new Date(geoapify.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const storage = geoapify.development ? 'Development key from .env, used for this run only.' : geoapify.encrypted ? 'Stored encrypted on this computer.' : 'Stored on this computer in a file only you can read. Secure storage is unavailable.';
+  const detail = geoapify.paused ? `Using the free services until ${resets}, when the daily allowance resets.` : 'Search and pin names use Geoapify.';
+  setContent('#geoapify-status', `<div class="runtime-row"><div>${icon('check')}<span><strong>Geoapify key added</strong><small>${esc(detail)} ${esc(storage)}</small></span></div><span class="runtime-tag ${geoapify.paused ? '' : 'available'}">${geoapify.paused ? 'Paused today' : 'On'}</span></div>
+    <div class="usage-meter${geoapify.warning ? ' warn' : ''}"><div class="usage-bar" role="progressbar" aria-label="Geoapify credits used today" aria-valuemin="0" aria-valuemax="${geoapify.limit}" aria-valuenow="${used}"><span style="width:${percent.toFixed(1)}%"></span></div><small>About ${used.toLocaleString()} of ${geoapify.limit.toLocaleString()} credits used today${geoapify.warning && !geoapify.paused ? '. Wraith switches to the free services at the limit.' : ''}</small></div>
+    <div class="button-row"><button id="geoapify-replace" type="button" class="secondary-button compact"${pending ? ' disabled' : ''}>${replacingKey ? 'Keep current key' : 'Replace key'}</button><button id="geoapify-remove" type="button" class="text-button"${pending ? ' disabled' : ''}>Remove key</button></div>`);
+  $('#geoapify-replace').onclick = () => { replacingKey = !replacingKey; $('#geoapify-key').value = ''; renderKeys(); if (replacingKey) $('#geoapify-key').focus(); };
+  $('#geoapify-remove').onclick = async () => { if (await runOperation(() => api.removeGeoapifyKey(), 'Geoapify key removed. Wraith is using the free services.')) replacingKey = false; };
 }
 
 function renderSetup() {
@@ -911,7 +960,7 @@ $('#retry-map').onclick = () => { tileErrors = 0; $('#map-error').hidden = true;
 $('#phone-chip').onclick = (event) => { event.stopPropagation(); if ($('#phone-popover').hidden) openPhonePopover(); else closePhonePopover(); };
 document.addEventListener('pointerdown', (event) => { if (!$('#phone-popover').hidden && !event.target.closest('#phone-popover, #phone-chip')) closePhonePopover(); });
 $('#help-button').onclick = openSetup;
-$('#settings-button').onclick = () => { $('#provider-url').value = state.preferences.geocoderUrl || 'https://photon.komoot.io/api/'; renderRuntime(); applyTheme(); paintIcons(true); $('#settings-dialog').showModal(); };
+$('#settings-button').onclick = () => { replacingKey = false; $('#geoapify-key').value = ''; $('#provider-url').value = state.preferences.geocoderUrl || 'https://photon.komoot.io/api/'; renderRuntime(); applyTheme(); paintIcons(true); $('#settings-dialog').showModal(); };
 document.querySelectorAll('[data-drift-choice]').forEach(button => { button.onclick = () => runOperation(() => api.updatePreferences({ drift: button.dataset.driftChoice })); });
 document.querySelectorAll('[data-notify]').forEach(input => { input.onchange = () => runOperation(() => api.updatePreferences({ notifications: { [input.dataset.notify]: input.checked } })); });
 document.querySelectorAll('[data-theme-choice]').forEach(button => { button.onclick = () => runOperation(() => api.updatePreferences({ theme: button.dataset.themeChoice })); });
@@ -919,8 +968,8 @@ $('#scan-button').onclick = () => runOperation(() => api.scanDevices(), 'Phone l
 $('#setup-scan').onclick = async () => { const result = await runOperation(() => api.scanDevices()); if (result && !result.devices.some((device) => device.platform === setupPlatform && device.state !== 'offline')) $('#setup-detection').textContent = `No ${platformName(setupPlatform)} found. Check the data cable, unlock the phone, and accept its prompt.`; };
 $('#change-configuration').onclick = openOnboarding;
 $('#rerun-onboarding').onclick = () => { $('#settings-dialog').close(); openOnboarding(); };
-$('#save-button').onclick = () => openSave();
-$('#apply-button').onclick = () => { if (selectedPlace && selectedDeviceId) runOperation(() => api.applyLocation({ deviceId: selectedDeviceId, ...selectedPlace })); };
+$('#save-button').onclick = async () => { if (!selectedPlace || pending) return; openSave(await nameSelectedPlace()); };
+$('#apply-button').onclick = () => { if (selectedPlace && selectedDeviceId) runOperation(async () => api.applyLocation({ deviceId: selectedDeviceId, ...await nameSelectedPlace() })); };
 document.querySelectorAll('[data-location-mode]').forEach(button => { button.onclick = () => { locationMode = button.dataset.locationMode; drawRoute(); render(); }; });
 const savePreferences = preferences => api.updatePreferences(preferences).then(acceptState).catch(error => notify(error.message, true));
 document.querySelectorAll('[data-travel-mode]').forEach(button => { button.onclick = () => {
@@ -1020,6 +1069,13 @@ $('#install-runtime').onclick = () => runOperation(() => api.installRuntime(), '
 $('#restore-preference').onchange = () => runOperation(() => api.updatePreferences({ restoreOnQuit: $('#restore-preference').checked }));
 $('#provider-form').onsubmit = (event) => { event.preventDefault(); const url = $('#provider-url').value.trim(); try { if (new URL(url).protocol !== 'https:') throw new Error(); } catch { notify('Use a valid HTTPS URL for your search provider.', true); return; } runOperation(() => api.updatePreferences({ geocoderUrl: url }), 'Search endpoint saved.'); };
 $('#reset-provider').onclick = () => { $('#provider-url').value = 'https://photon.komoot.io/api/'; runOperation(() => api.updatePreferences({ geocoderUrl: 'https://photon.komoot.io/api/' }), 'Default search endpoint restored.'); };
+$('#geoapify-form').onsubmit = async (event) => {
+  event.preventDefault();
+  const key = $('#geoapify-key').value.trim();
+  if (!key) return;
+  const result = await runOperation(() => api.setGeoapifyKey(key), 'Key works. Search and pin names now use Geoapify.');
+  if (result) { replacingKey = false; $('#geoapify-key').value = ''; renderKeys(); paintIcons(); }
+};
 $('#save-form').onsubmit = async (event) => { event.preventDefault(); const label = $('#place-name').value.trim(); if (!label || !placeBeingSaved) return; const result = await runOperation(() => api.savePlace({ ...placeBeingSaved, label }), 'Place saved.'); if (result) $('#save-dialog').close(); };
 $('#coordinate-form').onsubmit = (event) => { event.preventDefault(); selectPlace({ latitude: $('#latitude').value, longitude: $('#longitude').value, label: 'Custom coordinates' }); };
 
@@ -1087,7 +1143,7 @@ $('#search-form').onsubmit = async (event) => {
   try {
     const results = await api.searchPlaces(query);
     if (request !== searchNumber) return;
-    $('#search-results').innerHTML = results.length ? results.slice(0, 7).map((place, index) => `<button class="search-result" data-result="${index}">${icon('map-pin')}<span><strong>${esc(place.label)}</strong><small>${Number(place.latitude).toFixed(5)}, ${Number(place.longitude).toFixed(5)}</small></span>${icon(locationMode === 'route' ? 'plus' : 'arrow-up-right')}</button>`).join('') + '<div class="search-attribution">Search by Photon, © OpenStreetMap</div>' : '<div class="search-message">No places found. Try a nearby city or coordinates.</div>';
+    $('#search-results').innerHTML = results.length ? results.slice(0, 7).map((place, index) => `<button class="search-result" data-result="${index}">${icon('map-pin')}<span><strong>${esc(place.label)}</strong><small>${Number(place.latitude).toFixed(5)}, ${Number(place.longitude).toFixed(5)}</small></span>${icon(locationMode === 'route' ? 'plus' : 'arrow-up-right')}</button>`).join('') + (results[0]?.source === 'geoapify' ? `<div class="search-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors</div>` : '<div class="search-attribution">Search by Photon, © OpenStreetMap</div>') : '<div class="search-message">No places found. Try a nearby city or coordinates.</div>';
     document.querySelectorAll('[data-result]').forEach((button) => { button.onclick = () => {
       const place = results[Number(button.dataset.result)];
       selectPlace(place); $('#search-input').value = place.label;

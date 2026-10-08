@@ -393,6 +393,17 @@ dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
 .runtime-tag { padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); font-size: 12px; white-space: nowrap; }
 .runtime-tag.available { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
 #install-runtime { margin-top: 8px; }
+.keys-intro { margin-bottom: 4px; }
+.key-form { margin-top: 10px; }
+.key-input-row { display: flex; gap: 8px; }
+.key-input-row .secondary-button { min-height: 40px; }
+.key-input-row .text-input { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+.usage-meter { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.usage-meter small { color: var(--muted); font-size: 12px; }
+.usage-bar { height: 6px; border-radius: 999px; background: var(--raised); overflow: hidden; }
+.usage-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.usage-meter.warn .usage-bar span { background: var(--warn); }
+.usage-meter.warn small { color: var(--warn); }
 .setup-runtime { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--accent-soft); }
 .setup-runtime > div { flex: 1; }
 .setup-runtime p { margin-top: 3px; color: var(--muted); font-size: 13px; }

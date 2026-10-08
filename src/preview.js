@@ -57,6 +57,9 @@ export function createPreviewBridge() {
     importGpx: desktopOnly,
     exportGpx: desktopOnly,
     installRuntime: desktopOnly,
+    namePlace: async () => null,
+    setGeoapifyKey: desktopOnly,
+    removeGeoapifyKey: desktopOnly,
     searchPlaces: async () => { throw new Error('Place search is available in the desktop app. In this preview, click the map or enter coordinates to choose a place.'); },
     savePlace: async (place) => {
       const saved = { ...place, id: place.id || crypto.randomUUID() };

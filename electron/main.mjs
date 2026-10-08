@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker, nativeTheme, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shell, powerMonitor, powerSaveBlocker, nativeTheme, Notification, safeStorage } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
@@ -7,7 +7,9 @@ import { Store } from '../backend/store.mjs';
 import { RouteLibrary } from '../backend/library.mjs';
 import { MAX_GPX_BYTES } from '../backend/gpx.mjs';
 import { Controller } from '../backend/controller.mjs';
-import { Geocoder } from '../backend/geocoder.mjs';
+import { Geocoder, UNNAMED_LABELS } from '../backend/geocoder.mjs';
+import { Providers } from '../backend/providers.mjs';
+import { place } from '../backend/validation.mjs';
 import { IosAdapter } from '../backend/ios.mjs';
 import { AndroidAdapter } from '../backend/android.mjs';
 import { run } from '../backend/process.mjs';
@@ -50,8 +52,21 @@ nativeTheme.on('updated', () => {
     try { window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_HEIGHT }); } catch {}
   }
 });
-const geocoder = new Geocoder();
-const allowedExternal = new Set(['github.com', 'developer.android.com', 'developer.apple.com', 'support.apple.com', 'www.openstreetmap.org', 'openstreetmap.org', 'photon.komoot.io', 'doronz88.github.io']);
+let providers, geocoder;
+const allowedExternal = new Set(['github.com', 'developer.android.com', 'developer.apple.com', 'support.apple.com', 'www.openstreetmap.org', 'openstreetmap.org', 'photon.komoot.io', 'doronz88.github.io', 'www.geoapify.com', 'myprojects.geoapify.com', 'apidocs.geoapify.com']);
+// API keys are encrypted with the operating system's secure storage. Linux's
+// basic_text fallback is not real encryption, so treat it as unavailable.
+const secureStorage = {
+  available: () => safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+  encrypt: value => safeStorage.encryptString(value),
+  decrypt: buffer => safeStorage.decryptString(buffer),
+};
+// During development, GEOAPIFY_API_KEY in the git-ignored .env is used for that run only.
+async function developmentKey() {
+  if (app.isPackaged) return null;
+  if (process.env.GEOAPIFY_API_KEY) return process.env.GEOAPIFY_API_KEY.trim();
+  try { return (await readFile(path.join(rootPath, '.env'), 'utf8')).match(/^\s*GEOAPIFY_API_KEY\s*=\s*['"]?([A-Za-z0-9]+)['"]?\s*$/m)?.[1] || null; } catch { return null; }
+}
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { window?.show(); window?.focus(); });
@@ -108,6 +123,12 @@ async function boot() {
   // use real preferences (placeholder preferences used to reopen first-run setup).
   await controller.load();
   syncTheme(controller.state.preferences.theme);
+  providers = new Providers({ path: path.join(app.getPath('userData'), 'providers.json'), secure: secureStorage, developmentKey: await developmentKey() });
+  geocoder = new Geocoder({ providers });
+  await providers.load();
+  controller.setProviders(providers.status(), providers.warning);
+  providers.on('change', status => controller.setProviders(status));
+  providers.on('notice', notice => controller.setProviders(providers.status(), notice));
 
   const handlers = {
     getState: () => controller.snapshot(),
@@ -144,6 +165,12 @@ async function boot() {
       return { saved: true, fileName: path.basename(result.filePath) };
     },
     searchPlaces: query => { geocoder.configure(controller.state.preferences.geocoderUrl || 'https://photon.komoot.io/api/'); return geocoder.search(query); },
+    namePlace: value => {
+      const point = place(value);
+      return UNNAMED_LABELS.has(point.label) ? geocoder.name(point) : null;
+    },
+    setGeoapifyKey: value => providers.setGeoapifyKey(value).then(() => controller.snapshot()),
+    removeGeoapifyKey: () => providers.removeGeoapifyKey().then(() => controller.snapshot()),
     savePlace: value => controller.savePlace(value),
     deletePlace: id => controller.deletePlace(id),
     updatePreferences: value => controller.updatePreferences(value),

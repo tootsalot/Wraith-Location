@@ -38,6 +38,13 @@ https://github.com/komoot/photon#demo-server
 
 The application does not use the public Nominatim search API.
 
+If the user adds their own Geoapify API key, place search and dropped-pin names use
+the Geoapify Geocoding API (api.geoapify.com) on explicit request: search text, or a
+pin's coordinates, is sent with the user's key. Results are not cached. Wraith shows
+"Powered by Geoapify" while a key is set, as the free plan requires, alongside the
+OpenStreetMap attribution. Geoapify's terms apply to the user's own account:
+https://www.geoapify.com/terms-and-conditions/
+
 Road routing first uses the public Valhalla service operated by FOSSGIS
 (valhalla1.openstreetmap.de) on explicit request. Valhalla is MIT-licensed; Wraith does
 not bundle its server. Source: https://github.com/valhalla/valhalla
