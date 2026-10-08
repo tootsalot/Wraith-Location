@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { mkdir, readFile, writeFile, rename, copyFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { USER_AGENT } from './version.mjs';
 
 // Optional free-tier keys that unlock better services. Wraith works without any
 // key; with one, only deliberate actions spend credits, and nothing is cached.
@@ -9,7 +10,6 @@ export const GEOAPIFY_DAILY_CREDITS = 3000;
 export const GEOAPIFY_WARN_RATIO = 0.8;
 const KEY_PATTERN = /^[A-Za-z0-9]{16,64}$/;
 const MAX_BODY = 2_000_000;
-const USER_AGENT = 'Wraith/0.2.1 (+https://github.com/tootsalot/Wraith-Location)';
 // Any point works for checking a key; this one costs a single reverse lookup.
 const KEY_TEST_POINT = { lat: 51.5007, lon: -0.1246 };
 

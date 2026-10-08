@@ -3,6 +3,17 @@
 Results of checks run on real builds. Automated tests use simulated phones; real-device
 results are in [hardware-test-matrix.md](hardware-test-matrix.md).
 
+## 0.3.0 (Windows x64)
+
+| Check | Result |
+| --- | --- |
+| `npm test` | All 182 unit tests pass. |
+| `npm run test:renderer-session` | Passes: route plan/start/pause/resume, Wi-Fi prompt and handoff, live-update stability. |
+| Packaged smoke | Passes; a connected phone was discovered, both runtimes available, live search and Valhalla planning work. |
+| Real phone | The user installed the build and confirmed it works with their phone (October 2026). |
+| Release check | `scripts/release-notes.mjs --tag v0.3.0` matches package.json and CHANGELOG.md. |
+| Installer | `Wraith-0.3.0-win-x64.exe`, 153.9 MB (local build). SHA-256 `c192ba6916bb5e278b9bd7ac437d5a71b01cbe52ef1ef4d2791c23fe5dc10d5d`. The CI build's hash will differ. |
+
 ## 0.2.1 (Windows x64)
 
 | Check | Result |

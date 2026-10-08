@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Add optional Geoapify keys. Paste your own free key under **Free API keys** in Settings; Wraith tests it, then stores it encrypted with the system's secure storage. With a key, place search uses Geoapify (falling back to Photon) and dropped pins get a real address when set or saved. Settings shows roughly how many of the 3,000 daily credits have been used, warns at 80%, and switches to the free services at the limit or on a rate limit. "Powered by Geoapify" appears on the map and under search results while a key is set. See `docs/api-keys.md`.
 - Add natural drift for held places: the reported location wanders slowly by a few metres around the exact spot, like real GPS. Choose Off, Subtle (default) or Normal in Settings. It also applies at a route's destination after arrival.
@@ -13,6 +13,9 @@
 - Detect the computer automatically, so first-run setup only asks which phone you use.
 - Explain how to fix a missing usbmuxd (iPhone) or missing USB rules (Android) on Linux.
 - Build Windows, Mac and Linux installers on GitHub, and create a draft release with checksums when a version tag is pushed.
+- Reopen a held place at its exact spot rather than wherever natural drift had moved it.
+- Don't show a "Phone needs attention" notification while Wraith is quitting.
+- Identify Wraith to search, routing and Geoapify with the real app version, read from the build.
 
 ## 0.2.1
 

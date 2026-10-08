@@ -102,7 +102,8 @@ async function boot() {
   });
   controller.on('alert', ({ type, title, body }) => {
     const settings = controller.state.preferences.notifications || {};
-    if (settings.enabled === false || settings[type] === false || !Notification.isSupported()) return;
+    // Quitting ends the session on purpose; a notification then would outlive the window.
+    if (quitPending || quitting || settings.enabled === false || settings[type] === false || !Notification.isSupported()) return;
     // While Wraith is in front, its own status bar already shows the change.
     if (window && !window.isDestroyed() && window.isFocused() && !window.isMinimized()) return;
     const notification = new Notification({ title, body });

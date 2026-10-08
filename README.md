@@ -2,25 +2,33 @@
 
 Set your phone's location from your computer: hold it at a fixed place, or send it
 along real roads at a believable pace, as a drive, a bike ride or a walk. Wraith works
-with iPhone and Android, over a USB cable or Wi-Fi, on Windows and macOS.
+with iPhone and Android, over a USB cable or Wi-Fi, on Windows, macOS and Linux.
 
 ![Wraith in dark mode, driving from Union Station to Navy Pier in Chicago at 32 mph in a 30 zone](docs/images/wraith-route-dark.png)
 
-**[Download Wraith 0.2.1 for Windows](https://github.com/tootsalot/Wraith-Location/releases/latest)**, then follow the
+**[Download Wraith 0.3.0](https://github.com/tootsalot/Wraith-Location/releases/latest)** for Windows, Mac or Linux, then follow the
 [setup guide](SETUP.md) to connect your phone.
 
 Wraith is free software under the GNU GPL v3 or later.
 
 ## Install
 
-**Windows 10 or 11 (64-bit):** download `Wraith-0.2.1-win-x64.exe` from the
+**Windows 10 or 11 (64-bit):** download `Wraith-0.3.0-win-x64.exe` from the
 [latest release](https://github.com/tootsalot/Wraith-Location/releases/latest) and run it. The
 installer isn't code-signed yet, so Windows SmartScreen may warn you; choose
 **More info → Run anyway** if you trust the download. Each release lists a SHA-256
 checksum you can compare against.
 
-**macOS:** there is no prebuilt Mac download yet. [Build it from source](#build-from-source)
-on the Mac you'll use.
+**macOS:** download `Wraith-0.3.0-mac-arm64.dmg` for a Mac with an Apple chip, or
+`Wraith-0.3.0-mac-x64.dmg` for an Intel Mac. It isn't signed or notarized; if macOS
+blocks it, use **System Settings → Privacy & Security → Open Anyway**.
+
+**Linux (64-bit):** install `Wraith-0.3.0-linux-amd64.deb` on Ubuntu or Debian, or run
+`Wraith-0.3.0-linux-x86_64.AppImage` elsewhere. See the [setup guide](SETUP.md#download-and-open)
+for details.
+
+Mac and Linux builds are new in 0.3.0 and untested on real phones. Please
+[open an issue](https://github.com/tootsalot/Wraith-Location/issues) with what works.
 
 The app includes everything it needs to talk to phones. You don't need Python,
 Node.js, Android Studio or an account.

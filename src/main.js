@@ -391,7 +391,8 @@ function acceptState(next) {
   setupPlatform = state.preferences.phonePlatform || state.devices.find((device) => device.id === selectedDeviceId)?.platform || setupPlatform;
   render();
   // Restore the preview pin for a fixed session; a route's moving point is not a place to keep.
-  if (!selectedPlace && state.session && !state.route && Number.isFinite(state.session.latitude) && Number.isFinite(state.session.longitude)) selectPlace(state.session);
+  // A drifting place comes back at its exact anchor, not where the drift happens to be.
+  if (!selectedPlace && state.session && !state.route && Number.isFinite(state.session.latitude) && Number.isFinite(state.session.longitude)) selectPlace({ ...state.session, ...state.session.anchor });
   if (state.warning && state.warning !== lastWarning) { lastWarning = state.warning; notify(state.warning, true); }
   // Only real, loaded preferences decide first-run setup.
   if (!onboardingShown && state.loaded !== false && state.preferences.onboardingComplete !== true) {

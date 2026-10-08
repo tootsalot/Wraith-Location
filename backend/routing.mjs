@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { place, text } from './validation.mjs';
 import { measurePath, MPS_PER_MPH } from './geo.mjs';
 import { MODES, CONSTANT_SPEED_MPH, estimateSeconds } from './motion.mjs';
+import { USER_AGENT } from './version.mjs';
 
 export { distanceBetween, measurePath, pointAlong } from './geo.mjs';
+export { USER_AGENT };
 export const ROUTE_SPEED_MPS = CONSTANT_SPEED_MPH * MPS_PER_MPH;
-export const USER_AGENT = 'Wraith/0.2.1 (+https://github.com/tootsalot/Wraith-Location)';
 
 const VALHALLA_URL = 'https://valhalla1.openstreetmap.de';
 const VALHALLA_COSTING = { drive: 'auto', bike: 'bicycle', walk: 'pedestrian' };

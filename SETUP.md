@@ -4,13 +4,15 @@ Wraith runs on your computer and sends simulated locations to a phone over a USB
 
 ## Download and open
 
-On Windows, download `Wraith-0.2.1-win-x64.exe` from the [latest release](https://github.com/tootsalot/Wraith-Location/releases/latest). There is no prebuilt Mac download yet; build it on the Mac you will use, following [Build from source](README.md#build-from-source). A build produces:
+Download the installer for your computer from the [latest release](https://github.com/tootsalot/Wraith-Location/releases/latest). Mac and Linux builds are untested on real phones so far.
 
 | Your computer | Installer |
 | --- | --- |
-| Mac with an Apple chip (M1 or newer) | `Wraith-0.2.1-mac-arm64.dmg` |
-| Mac with an Intel processor | `Wraith-0.2.1-mac-x64.dmg` |
-| Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.2.1-win-x64.exe` |
+| Mac with an Apple chip (M1 or newer) | `Wraith-0.3.0-mac-arm64.dmg` |
+| Mac with an Intel processor | `Wraith-0.3.0-mac-x64.dmg` |
+| Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.3.0-win-x64.exe` |
+| Ubuntu or Debian, 64-bit | `Wraith-0.3.0-linux-amd64.deb` |
+| Other Linux, 64-bit | `Wraith-0.3.0-linux-x86_64.AppImage` |
 
 On Mac, **Apple menu → About This Mac** identifies the chip. On Windows, look at **Settings → System → About → System type**. Windows ARM and ARM Linux are not release targets. Native builds are checked on macOS 15, Windows Server 2025 and Ubuntu 24.04; other OS versions have not been rehearsed.
 

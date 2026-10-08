@@ -1,11 +1,11 @@
 # Wraith design brief
 
-Status: version 0.2.1. See `validation.md` for what has been checked and
+Status: version 0.3.0. See `validation.md` for what has been checked and
 `hardware-test-matrix.md` for real-device results.
 
 ## Product
 
-Wraith is a free, open-source Electron app for Windows and macOS that sets an iPhone's or
+Wraith is a free, open-source Electron app for Windows, macOS and Linux that sets an iPhone's or
 Android phone's location from a computer, over USB or Wi-Fi.
 
 - One phone session at a time: hold a place, or follow a route.

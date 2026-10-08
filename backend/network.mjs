@@ -13,7 +13,7 @@ export async function wifiStatus({platform = process.platform, runner = run, int
   } else if (platform === 'win32') {
     const result = await runner('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "@(Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' -and $_.NdisPhysicalMedium -in 1,9 } | Select-Object -ExpandProperty Name) | ConvertTo-Json -Compress"], {timeoutMs: 5000});
     if (result.code !== 0 || !result.stdout.trim()) return {wifi: false};
-    const parsed = JSON.parse(result.stdout.replace(/^﻿/, ''));
+    const parsed = JSON.parse(result.stdout.replace(/^\uFEFF/, ''));
     names = Array.isArray(parsed) ? parsed : [parsed];
   } else if (platform === 'linux') {
     // The kernel marks wireless interfaces in sysfs; no NetworkManager or extra tools needed.

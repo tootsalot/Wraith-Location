@@ -1,4 +1,5 @@
 import { coordinates, geocoderUrl } from './validation.mjs';
+import { USER_AGENT } from './version.mjs';
 
 // Placeholder labels the interface gives pins that have no real name yet.
 export const UNNAMED_LABELS = new Set(['Dropped pin', 'Custom coordinates']);
@@ -32,7 +33,7 @@ export class Geocoder {
       let response;
       try {
         response = await this.fetch(url, {
-          headers: { 'User-Agent': 'Wraith/0.2 (+https://github.com/tootsalot/Wraith-Location)', Accept: 'application/json' },
+          headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
           signal: AbortSignal.timeout(12000)
         });
       } catch { throw new Error('Place search is unavailable. Check your connection, or choose a pin on the map.'); }
