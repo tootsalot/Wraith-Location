@@ -413,7 +413,35 @@ dialog[open] { animation: rise .18s ease-out; }
 .route-summary progress::-webkit-progress-bar { background: var(--fill); }
 .route-summary progress::-webkit-progress-value { background: var(--blue); }
 .route-stop-marker { border: 2px solid white; background: var(--blue); border-radius: 50%; color: white; display: grid; place-items: center; box-shadow: 0 1px 5px #0004; font-size: 12px; font-weight: 650; }
+.route-stop-marker.editable { cursor: grab; }
+.route-stop-marker.editable:active { cursor: grabbing; }
 .route-location-dot { filter: drop-shadow(0 1px 4px #0005); }
+.travel-modes { display: flex; gap: 6px; margin: 0 0 14px; }
+.travel-modes button { flex: 1; min-height: 36px; padding: 7px 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.45); font-size: 12px; font-weight: 550; }
+.travel-modes button svg { width: 15px; height: 15px; }
+.travel-modes button[aria-pressed="true"] { border-color: rgba(8,123,255,.5); background: rgba(8,123,255,.1); color: var(--blue); }
+.travel-modes button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.route-tip { margin: 8px 0 0; color: var(--secondary); font-size: 12px; line-height: 1.45; }
+.route-stops li { border-radius: 9px; }
+.route-stops li[draggable="true"] { cursor: grab; }
+.route-stops li.dragging { opacity: .45; }
+.route-stops li.drop-target { box-shadow: inset 0 2px 0 var(--blue); }
+.route-stops li:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.route-stop-grip { display: grid; place-items: center; width: 14px; margin-right: -4px; color: var(--tertiary); }
+.route-stop-grip svg { width: 14px; height: 14px; }
+.route-details { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.route-details svg { width: 13px; height: 13px; }
+.route-live { display: block; margin-top: 4px; color: var(--text); font-weight: 550; font-variant-numeric: tabular-nums; }
+.motion-settings { margin: 4px 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.4); }
+.motion-settings .setting-row { gap: 14px; }
+.speed-row { display: flex; align-items: baseline; justify-content: space-between; margin: 16px 0 6px; font-size: 13px; font-weight: 550; }
+.speed-row output { font-variant-numeric: tabular-nums; color: var(--blue); }
+.speed-slider { width: 100%; margin: 0; accent-color: var(--blue); }
+.motion-settings .settings-note { margin: 6px 0 0; font-size: 12px; }
+#route-from-here { width: 100%; margin-top: 12px; }
+.route-library { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
+.library-actions { display: flex; gap: 6px; }
+.route-library .saved-place-main > svg { width: 17px; }
 .show-saved .location-modes { display: none; }
 .route-active .destination-section > .section-heading,
 .route-active #destination-summary,
@@ -422,6 +450,7 @@ dialog[open] { animation: rise .18s ease-out; }
 .route-active #add-route-stop,
 .route-active .route-plan-actions,
 .route-active .route-provider,
+.route-active .route-tip,
 .route-active:not(.show-saved) .saved-section { display: none; }
 .route-active .route-stops { max-height: 190px; overflow-y: auto; }
 

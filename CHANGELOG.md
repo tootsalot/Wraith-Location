@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Unlock route planning, saved routes and Fixed location after a route arrives. The phone keeps holding the destination, and **New route from here** starts the next route at the current point.
+- Add Drive, Bike and Walk modes with a per-mode top-speed slider that can change while a route runs.
+- Add realistic motion, on by default: posted speed limits (about 5 mph over for drivers), smooth acceleration and braking, slowing for corners, traffic-light stops, pace variation and correlated GPS drift. Turning it off gives exact constant-speed playback.
+- Plan with the FOSSGIS Valhalla service for speed limits and traffic signals, falling back to OSRM.
+- Click the map to add stops; drag (or Alt+arrow) to reorder; drag markers to move stops. Search results add stops directly in Route mode.
+- Save routes with their full path, and import/export GPX. Timed GPX tracks replay at their recorded speeds.
+- Fix first-run setup reopening on every launch: settings now load before the window opens.
+- Remember **Stay on USB** for the Wi-Fi switch prompt across launches.
+
 ## 0.1.7
 
 - Offer Switch to Wi-Fi after a working USB session when the computer has an active Wi-Fi interface.

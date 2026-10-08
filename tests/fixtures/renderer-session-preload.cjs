@@ -50,14 +50,14 @@ contextBridge.exposeInMainWorld('ghost', {
   switchToWifi: async deviceId => { calls.push({method: 'switchToWifi', deviceId}); state.preferences.connection = 'wifi'; state.devices = state.devices.map(d => ({...d, connection: 'wifi'})); if (state.session) state.session.connection = 'wifi'; return publish(); },
   connectWifi: async value => { calls.push({method: 'connectWifi', ...value}); return publish(); },
   getRoute: async () => plannedRoute || null,
-  planRoute: async stops => {
-    calls.push({method: 'planRoute', stops});
-    plannedRoute = {id: 'test-route', waypoints: stops, coordinates: [[-87.6233, 41.8827], [-87.6233, 41.89], [-87.63, 41.89]], distanceMeters: 1400, durationSeconds: 69.59, speedMph: 45};
+  planRoute: async value => {
+    calls.push({method: 'planRoute', ...value});
+    plannedRoute = {id: 'test-route', mode: value.mode, provider: 'valhalla', waypoints: value.waypoints, coordinates: [[-87.6233, 41.8827], [-87.6233, 41.89], [-87.63, 41.89]], profile: {spans: [[0, 2, 48, 1]], signals: [1]}, distanceMeters: 1400, durationSeconds: 69.59};
     return plannedRoute;
   },
   startRoute: async value => {
     calls.push({method: 'startRoute', ...value});
-    state.route = {id: plannedRoute.id, status: 'running', distanceMeters: 1400, traveledMeters: 0, remainingSeconds: 69.59, point: {latitude: 41.8827, longitude: -87.6233}, message: 'Following the road at 45 mph.'};
+    state.route = {id: plannedRoute.id, status: 'running', mode: value.mode, realistic: value.realistic, topSpeedMph: value.topSpeedMph, speedMph: 0, distanceMeters: 1400, traveledMeters: 0, remainingSeconds: 69.59, point: {latitude: 41.8827, longitude: -87.6233}, message: 'Driving with realistic speeds.'};
     state.session = {...state.session, status: 'active'};
     return publish();
   },

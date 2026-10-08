@@ -2,7 +2,10 @@ import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, Menu, shel
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import { Store } from '../backend/store.mjs';
+import { RouteLibrary } from '../backend/library.mjs';
+import { MAX_GPX_BYTES } from '../backend/gpx.mjs';
 import { Controller } from '../backend/controller.mjs';
 import { Geocoder } from '../backend/geocoder.mjs';
 import { IosAdapter } from '../backend/ios.mjs';
@@ -46,7 +49,7 @@ async function boot() {
   const callbacks = { onSessionEnd: event => controller?.sessionEnded(event), onLocationRefresh: event => controller?.locationRefreshed(event) };
   const ios = new IosAdapter({ ...options, ...callbacks });
   const android = new AndroidAdapter({ ...options, ...callbacks });
-  controller = new Controller({ adapters: { ios, android }, network: wifiStatus, store: new Store(path.join(app.getPath('userData'), 'settings.json')) });
+  controller = new Controller({ adapters: { ios, android }, network: wifiStatus, store: new Store(path.join(app.getPath('userData'), 'settings.json')), library: new RouteLibrary(path.join(app.getPath('userData'), 'routes.json')) });
   controller.on('state', state => {
     const active = state.session && ['active', 'applying', 'reconnecting'].includes(state.session.status);
     if (active && wakeLock == null) wakeLock = powerSaveBlocker.start('prevent-app-suspension');
@@ -68,6 +71,25 @@ async function boot() {
     startRoute: value => controller.startRoute(value),
     pauseRoute: () => controller.pauseRoute(),
     resumeRoute: () => controller.resumeRoute(),
+    updateRouteOptions: value => controller.updateRouteOptions(value),
+    saveRoute: value => controller.saveRoute(value),
+    loadSavedRoute: id => controller.loadSavedRoute(id),
+    renameSavedRoute: value => controller.renameSavedRoute(value),
+    deleteSavedRoute: id => controller.deleteSavedRoute(id),
+    importGpx: async value => {
+      const result = await dialog.showOpenDialog(window, { title: 'Import GPX route', filters: [{ name: 'GPX routes and tracks', extensions: ['gpx'] }], properties: ['openFile'] });
+      if (result.canceled || !result.filePaths[0]) return { canceled: true };
+      if ((await stat(result.filePaths[0])).size > MAX_GPX_BYTES) throw new Error('GPX files must be smaller than 25 MB.');
+      return controller.importGpx(await readFile(result.filePaths[0], 'utf8'), { mode: value?.mode });
+    },
+    exportGpx: async () => {
+      const { name, gpx } = controller.exportGpx();
+      const fileName = `${name.replace(/[<>:"/\|?*\u0000-\u001f]/g, '').trim().slice(0, 80) || 'Ghost route'}.gpx`;
+      const result = await dialog.showSaveDialog(window, { title: 'Export GPX route', defaultPath: fileName, filters: [{ name: 'GPX', extensions: ['gpx'] }] });
+      if (result.canceled || !result.filePath) return { canceled: true };
+      await writeFile(result.filePath, gpx, 'utf8');
+      return { saved: true, fileName: path.basename(result.filePath) };
+    },
     searchPlaces: query => { geocoder.configure(controller.state.preferences.geocoderUrl || 'https://photon.komoot.io/api/'); return geocoder.search(query); },
     savePlace: value => controller.savePlace(value),
     deletePlace: id => controller.deletePlace(id),
@@ -114,7 +136,9 @@ async function boot() {
     { label: 'View', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, ...(!app.isPackaged ? [{ role: 'toggleDevTools' }] : [])] },
     { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'close' }] }
   ]));
-  // Load the UI immediately; device discovery must not hold the window hostage.
+  // Read settings first so the window never sees placeholder preferences (which
+  // used to reopen first-run setup). Device discovery must not hold the window hostage.
+  await controller.load();
   if (devUrl) await window.loadURL(devUrl);
   else if (existsSync(path.join(dist, 'index.html'))) await window.loadURL('ghost://app/index.html');
   else throw new Error('Build the interface first with npm run build.');

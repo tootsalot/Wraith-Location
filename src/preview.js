@@ -4,6 +4,8 @@ export function createPreviewBridge() {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
   };
   const state = {
+    loaded: true,
+    savedRoutes: [],
     devices: [],
     runtime: {
       ios: { available: false, message: 'Open the desktop app to check the iPhone runtime.' },
@@ -18,6 +20,10 @@ export function createPreviewBridge() {
       onboardingComplete: false,
       hostPlatform: null,
       phonePlatform: null,
+      routeMode: 'drive',
+      realisticMotion: true,
+      routeSpeeds: { drive: 70, bike: 14, walk: 3.2 },
+      dismissedWifiPrompts: [],
       ...read('ghost.preview.preferences', {}),
     },
     busy: false,
@@ -39,6 +45,13 @@ export function createPreviewBridge() {
     startRoute: desktopOnly,
     pauseRoute: desktopOnly,
     resumeRoute: desktopOnly,
+    updateRouteOptions: desktopOnly,
+    saveRoute: desktopOnly,
+    loadSavedRoute: desktopOnly,
+    renameSavedRoute: desktopOnly,
+    deleteSavedRoute: desktopOnly,
+    importGpx: desktopOnly,
+    exportGpx: desktopOnly,
     installRuntime: desktopOnly,
     searchPlaces: async () => { throw new Error('Place search is available in the desktop app. In this preview, click the map or enter coordinates to choose a place.'); },
     savePlace: async (place) => {

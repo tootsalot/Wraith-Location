@@ -5,9 +5,11 @@ import {
   createIcons, MapPin, Bookmark, Settings2, HelpCircle, ArrowUpRight, ArrowRight,
   Search, Plus, Minus, Crosshair, Smartphone, RefreshCw, ChevronDown, X, Check,
   Circle, Download, Pencil, Trash2, RotateCcw, LoaderCircle, Cable, Laptop, Monitor,
-  ChevronLeft,
+  ChevronLeft, Car, Bike, Footprints, GripVertical, Upload, Navigation,
 } from 'lucide';
 import { createPreviewBridge } from './preview.js';
+import { measurePath, MPS_PER_MPH } from '../backend/geo.mjs';
+import { MODES, clampSpeedMph, estimateSeconds } from '../backend/motion.mjs';
 
 const isPreview = !window.ghost;
 const detectedHost = /Windows/i.test(navigator.userAgent) ? 'windows' : 'mac';
@@ -15,7 +17,8 @@ document.documentElement.classList.toggle('host-windows', detectedHost === 'wind
 document.documentElement.classList.toggle('desktop-app', !isPreview);
 const api = window.ghost || createPreviewBridge();
 const dismissedWifi = new Set();
-const icons = { MapPin, Bookmark, Settings2, HelpCircle, ArrowUpRight, ArrowRight, Search, Plus, Minus, Crosshair, Smartphone, RefreshCw, ChevronDown, X, Check, Circle, Download, Pencil, Trash2, RotateCcw, LoaderCircle, Cable, Laptop, Monitor, ChevronLeft };
+const icons = { MapPin, Bookmark, Settings2, HelpCircle, ArrowUpRight, ArrowRight, Search, Plus, Minus, Crosshair, Smartphone, RefreshCw, ChevronDown, X, Check, Circle, Download, Pencil, Trash2, RotateCcw, LoaderCircle, Cable, Laptop, Monitor, ChevronLeft, Car, Bike, Footprints, GripVertical, Upload, Navigation };
+const modeIcons = { drive: 'car', bike: 'bike', walk: 'footprints' };
 const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 const icon = (name, cls = '') => `<i data-lucide="${name}" class="${cls}" aria-hidden="true"></i>`;
@@ -84,6 +87,11 @@ let locationMode = 'fixed';
 let routeStops = [], routePlan = null;
 let routeLine = null, routeDot = null;
 const routeMarkers = [];
+let routeMode = 'drive', realisticMotion = true, routeSpeeds = { drive: 70, bike: 14, walk: 3.2 };
+let preferencesApplied = false, lastRouteId = null, lastLocked = false, draggedStop = null;
+let planPath = null, estimateCache = null;
+let autoOnboarding = false;
+let routeBeingNamed = null;
 let setupHost = detectedHost;
 let setupPlatform = 'ios';
 let surveyHost = detectedHost;
@@ -137,13 +145,26 @@ $('#app').innerHTML = `
           <form id="coordinate-form" class="coordinate-form"><label><span>Latitude</span><input id="latitude" type="number" min="-90" max="90" step="any" placeholder="41.88270" required aria-label="Latitude" /></label><label><span>Longitude</span><input id="longitude" type="number" min="-180" max="180" step="any" placeholder="−87.62330" required aria-label="Longitude" /></label><button type="submit" class="coordinate-submit" aria-label="Select these coordinates" title="Select these coordinates">${icon('arrow-right')}</button></form>
           <p class="coordinate-hint">Search, enter coordinates, or click the map.</p>
           <div id="route-controls" hidden>
+            <div class="travel-modes" role="group" aria-label="Travel mode">${Object.entries(MODES).map(([mode, spec]) => `<button data-travel-mode="${mode}" aria-pressed="false">${icon(modeIcons[mode])}<span>${spec.label}</span></button>`).join('')}</div>
             <button id="add-route-stop" class="secondary-button">${icon('plus')} Add selected pin to route</button>
+            <p class="route-tip">Or click the map to add stops. Drag stops in the list or on the map to change them.</p>
             <ol id="route-stops" class="route-stops"></ol>
-            <div class="route-plan-actions"><button id="plan-route" class="secondary-button">Plan road route</button><button id="clear-route" class="text-button">Clear</button></div>
-            <p class="route-provider">Stops are sent to OSRM when you plan. Roads by OpenStreetMap. Internet required.</p>
+            <div class="route-plan-actions"><button id="plan-route" class="secondary-button">Plan route</button><button id="clear-route" class="text-button">Clear</button></div>
+            <p class="route-provider">Stops are sent to the public Valhalla service (FOSSGIS), or OSRM if it is unavailable. Roads by OpenStreetMap. Internet required.</p>
             <div id="route-summary" class="route-summary" hidden></div>
-            <button id="route-play" class="primary-button" disabled>Start route · 45 mph</button>
+            <div class="motion-settings">
+              <label class="setting-row"><span><strong>Realistic motion</strong><small>Speed limits, corners, traffic lights, natural pace changes and GPS drift.</small></span><input id="realistic-toggle" type="checkbox" class="switch" /></label>
+              <div class="speed-row"><label for="speed-slider" id="speed-label">Top speed</label><output id="speed-value" for="speed-slider"></output></div>
+              <input id="speed-slider" class="speed-slider" type="range" />
+              <p id="speed-note" class="settings-note"></p>
+            </div>
+            <button id="route-play" class="primary-button" disabled>Start route</button>
             <p id="route-hint" class="action-hint">Add a start and destination, in order.</p>
+            <button id="route-from-here" class="secondary-button" hidden>${icon('navigation')} New route from here</button>
+            <div class="route-library">
+              <div class="section-heading"><h2>Saved routes <span id="saved-routes-count" class="count">0</span></h2><div class="library-actions"><button id="save-route" class="icon-button" aria-label="Save this route" title="Save this route">${icon('bookmark')}</button><button id="import-gpx" class="icon-button" aria-label="Import GPX" title="Import GPX">${icon('upload')}</button><button id="export-gpx" class="icon-button" aria-label="Export GPX" title="Export GPX">${icon('download')}</button></div></div>
+              <div id="saved-routes"></div>
+            </div>
           </div>
           <div id="fixed-actions"><button id="apply-button" class="primary-button" disabled><span>Set location</span>${icon('arrow-up-right')}</button><p id="apply-hint" class="action-hint">Connect a phone to get started.</p></div><button id="restore-button" class="restore-button" disabled>${icon('rotate-ccw')} Restore real location</button>
         </section>
@@ -202,6 +223,7 @@ $('#app').innerHTML = `
   </dialog>
 
   <dialog id="save-dialog" class="small-dialog" aria-labelledby="save-title"><div class="sheet-heading"><div><span class="eyebrow">Saved place</span><h2 id="save-title">Save this place</h2></div><button class="icon-button" data-close="save-dialog" aria-label="Close save place">${icon('x')}</button></div><form id="save-form"><label class="field-label" for="place-name">Name</label><input id="place-name" class="text-input" maxlength="120" required placeholder="Place name" /><input id="place-id" type="hidden" /><p id="save-coordinates" class="settings-note"></p><button class="primary-button" type="submit"><span>Save place</span>${icon('bookmark')}</button></form></dialog>
+  <dialog id="route-name-dialog" class="small-dialog" aria-labelledby="route-name-title"><div class="sheet-heading"><div><span class="eyebrow">Saved route</span><h2 id="route-name-title">Save this route</h2></div><button class="icon-button" data-close="route-name-dialog" aria-label="Close save route">${icon('x')}</button></div><form id="route-name-form"><label class="field-label" for="route-name">Name</label><input id="route-name" class="text-input" maxlength="120" required placeholder="Route name" /><p class="settings-note">Saved routes keep the full path, so they replay without planning again.</p><button class="primary-button" type="submit"><span id="route-name-submit">Save route</span>${icon('bookmark')}</button></form></dialog>
   <div id="toast" class="toast" role="status" hidden><span id="toast-icon"></span><span id="toast-message"></span><button id="toast-close" class="icon-button" aria-label="Dismiss notification">${icon('x')}</button></div>
 `;
 
@@ -230,17 +252,35 @@ function notify(message, error = false) {
 function acceptState(next) {
   if (!next?.devices) return;
   state = { ...state, ...next };
-  if (state.route) locationMode = 'route';
+  if (!preferencesApplied && state.loaded !== false) {
+    preferencesApplied = true;
+    if (MODES[state.preferences.routeMode]) routeMode = state.preferences.routeMode;
+    if (typeof state.preferences.realisticMotion === 'boolean') realisticMotion = state.preferences.realisticMotion;
+    routeSpeeds = { ...routeSpeeds, ...state.preferences.routeSpeeds };
+  }
+  // Jump to Route mode once when a route starts, without trapping the user there after arrival.
+  const routeId = state.route?.id || null;
+  if (routeId && routeId !== lastRouteId) {
+    locationMode = 'route';
+    if (MODES[state.route.mode]) routeMode = state.route.mode;
+    if (typeof state.route.realistic === 'boolean') realisticMotion = state.route.realistic;
+    if (Number.isFinite(state.route.topSpeedMph)) routeSpeeds[routeMode] = state.route.topSpeedMph;
+  }
+  lastRouteId = routeId;
+  // Stop markers become draggable again when a route arrives or is restored.
+  if (routeLocked() !== lastLocked) { lastLocked = routeLocked(); drawRoute(); }
   if (!state.devices.some((device) => device.id === selectedDeviceId)) selectedDeviceId = state.devices.find((device) => device.id === state.session?.deviceId)?.id || state.devices[0]?.id || state.session?.deviceId || null;
   setupHost = state.preferences.hostPlatform || setupHost || detectedHost;
   setupPlatform = state.preferences.phonePlatform || state.devices.find((device) => device.id === selectedDeviceId)?.platform || setupPlatform;
   render();
   if (!selectedPlace && state.session && Number.isFinite(state.session.latitude) && Number.isFinite(state.session.longitude)) selectPlace(state.session);
   if (state.warning && state.warning !== lastWarning) { lastWarning = state.warning; notify(state.warning, true); }
-  if (!onboardingShown && state.preferences.onboardingComplete !== true) {
-    onboardingShown = true;
+  // Only real, loaded preferences decide first-run setup.
+  if (!onboardingShown && state.loaded !== false && state.preferences.onboardingComplete !== true) {
+    onboardingShown = true; autoOnboarding = true;
     requestAnimationFrame(() => openOnboarding());
   }
+  if (autoOnboarding && state.preferences.onboardingComplete === true && $('#onboarding-dialog').open) { autoOnboarding = false; $('#onboarding-dialog').close(); }
 }
 
 async function runOperation(action, message, operation = null) {
@@ -341,50 +381,149 @@ function placeItem(place) {
 }
 
 const routeTime = seconds => seconds < 60 ? `${Math.ceil(seconds)} sec` : seconds < 3600 ? `${Math.ceil(seconds / 60)} min` : `${Math.floor(seconds / 3600)} hr ${Math.ceil(seconds % 3600 / 60)} min`;
+const miles = meters => `${(meters / 1609.344).toFixed(meters < 16093 ? 2 : 1)} mi`;
+const speedText = mph => `${mph < 10 ? mph.toFixed(1).replace(/\.0$/, '') : Math.round(mph)} mph`;
+// A running or paused route owns the phone; an arrived route only holds the destination.
+const routeLocked = () => Boolean(state.route && state.session && state.route.status !== 'completed');
 function fitRoute() {
   if (routeLine) map.fitBounds(routeLine.getBounds(), { paddingTopLeft: [390, 95], paddingBottomRight: [85, 160], maxZoom: 16 });
+}
+function setRoutePlan(plan) {
+  routePlan = plan; estimateCache = null;
+  try { planPath = plan ? measurePath(plan.coordinates) : null; } catch { planPath = null; }
+}
+function routeEstimate() {
+  if (!routePlan || !planPath) return null;
+  const mode = playbackMode(), top = routeSpeeds[mode] ?? MODES[mode].defaultMph;
+  const key = `${routePlan.id}:${mode}:${realisticMotion}:${top}`;
+  if (estimateCache?.key !== key) estimateCache = { key, seconds: estimateSeconds(planPath, routePlan.profile, { mode, realistic: realisticMotion, topSpeedMph: top }) };
+  return estimateCache.seconds;
+}
+// Recorded GPX tracks play in the selected mode; routed plans keep their network's mode.
+const playbackMode = () => routePlan && routePlan.provider !== 'gpx' && MODES[routePlan.mode] ? routePlan.mode : routeMode;
+function stopsChanged() { setRoutePlan(null); drawRoute(); renderRoute(); paintIcons(); }
+function addRouteStop(place) {
+  if (routeLocked()) return false;
+  if (routeStops.length >= 12) { notify('Routes can have up to 12 stops.', true); return false; }
+  routeStops.push({ latitude: place.latitude, longitude: place.longitude, label: place.label || 'Dropped pin' });
+  stopsChanged(); return true;
+}
+function moveStop(from, to) {
+  if (from === to || from < 0 || to < 0 || from >= routeStops.length || to >= routeStops.length) return;
+  const [stop] = routeStops.splice(from, 1); routeStops.splice(to, 0, stop); stopsChanged();
 }
 function drawRoute() {
   if (routeLine) { routeLine.remove(); routeLine = null; }
   routeMarkers.splice(0).forEach(item => item.remove());
   if (locationMode !== 'route') return;
   if (routePlan) routeLine = L.polyline(routePlan.coordinates.map(([lon, lat]) => [lat, lon]), { color: '#087bff', weight: 5, opacity: 0.85, interactive: false }).addTo(map);
+  const editable = !routeLocked();
   routeStops.forEach((stop, index) => {
     const latlng = index === 0 && routePlan ? [...routePlan.coordinates[0]].reverse() : index === routeStops.length - 1 && routePlan ? [...routePlan.coordinates.at(-1)].reverse() : [stop.latitude, stop.longitude];
-    routeMarkers.push(L.marker(latlng, { interactive: false, icon: L.divIcon({ className: 'route-stop-marker', html: `<span>${index + 1}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(map));
+    const stopMarker = L.marker(latlng, { interactive: editable, draggable: editable, keyboard: false, title: editable ? `Stop ${index + 1}. Drag to move.` : `Stop ${index + 1}`, icon: L.divIcon({ className: `route-stop-marker${editable ? ' editable' : ''}`, html: `<span>${index + 1}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(map);
+    stopMarker.on('dragend', () => {
+      const point = stopMarker.getLatLng().wrap();
+      routeStops[index] = { latitude: point.lat, longitude: point.lng, label: 'Dropped pin' };
+      stopsChanged();
+    });
+    routeMarkers.push(stopMarker);
   });
 }
+function renderSavedRoutes(busy) {
+  const routes = state.savedRoutes || [];
+  $('#saved-routes-count').textContent = routes.length;
+  setContent('#saved-routes', routes.length ? routes.map(route => `<div class="saved-place"><button class="saved-place-main" data-load-route="${esc(route.id)}" ${busy || routeLocked() ? 'disabled' : ''}>${icon(modeIcons[route.mode] || 'car')}<span><strong>${esc(route.name)}</strong><small>${MODES[route.mode]?.label || 'Drive'} · ${miles(route.distanceMeters)} · ${route.provider === 'gpx' ? 'GPX track' : `${route.stops} stops`}</small></span></button><div class="saved-place-actions"><button class="icon-button" data-rename-route="${esc(route.id)}" aria-label="Rename ${esc(route.name)}" title="Rename">${icon('pencil')}</button><button class="icon-button" data-delete-route="${esc(route.id)}" aria-label="Remove ${esc(route.name)}" title="Remove">${icon('trash-2')}</button></div></div>`).join('') : `<div class="saved-empty">${icon('upload')}<p>Save a planned route, or import a GPX file.</p></div>`);
+  document.querySelectorAll('[data-load-route]').forEach(button => { button.onclick = async () => {
+    const loaded = await runOperation(() => api.loadSavedRoute(button.dataset.loadRoute));
+    if (loaded) showLoadedRoute(loaded);
+  }; });
+  document.querySelectorAll('[data-rename-route]').forEach(button => { button.onclick = () => openRouteName(routes.find(route => route.id === button.dataset.renameRoute)); });
+  document.querySelectorAll('[data-delete-route]').forEach(button => { button.onclick = () => runOperation(() => api.deleteSavedRoute(button.dataset.deleteRoute), 'Route removed.'); });
+  $('#save-route').disabled = busy || !routePlan || isPreview;
+  $('#export-gpx').disabled = busy || !routePlan || isPreview;
+  $('#import-gpx').disabled = busy || routeLocked() || isPreview;
+}
+function showLoadedRoute(route) {
+  setRoutePlan(route);
+  routeStops = route.waypoints.map(stop => ({ ...stop }));
+  if (MODES[route.mode] && route.provider !== 'gpx') routeMode = route.mode;
+  drawRoute(); fitRoute(); render();
+}
+function renderMotionSettings(busy) {
+  const mode = playbackMode(), spec = MODES[mode];
+  const top = clampSpeedMph(mode, routeSpeeds[mode]);
+  const slider = $('#speed-slider');
+  slider.min = spec.minMph; slider.max = spec.maxMph; slider.step = spec.maxMph <= 10 ? 0.1 : spec.maxMph <= 30 ? 0.5 : 1;
+  if (document.activeElement !== slider) slider.value = top;
+  $('#speed-value').textContent = speedText(Number(slider.value));
+  $('#speed-label').textContent = realisticMotion ? 'Top speed' : 'Speed';
+  $('#speed-note').textContent = !realisticMotion ? `Moves at exactly this speed along the path.` : mode === 'drive' ? 'Drives about 5 mph over posted limits, never faster than this.' : `${spec.verb} pace varies a little below this speed.`;
+  if (document.activeElement !== $('#realistic-toggle')) $('#realistic-toggle').checked = realisticMotion;
+  const completed = state.route?.status === 'completed';
+  $('#realistic-toggle').disabled = slider.disabled = busy && !routeLocked() && !completed;
+}
 function renderRoute() {
-  const route = state.route, active = Boolean(route && state.session), inRoute = locationMode === 'route';
+  const route = state.route, active = Boolean(route && state.session), locked = routeLocked(), inRoute = locationMode === 'route';
   const busy = pending || state.busy;
-  const panel = $('.control-panel'), wasActive = panel.classList.contains('route-active');
-  panel.classList.toggle('route-active', active);
-  if (active && !wasActive) $('.panel-scroll').scrollTop = 0;
+  const panel = $('.control-panel'), wasLocked = panel.classList.contains('route-active');
+  panel.classList.toggle('route-active', locked);
+  if (locked && !wasLocked) $('.panel-scroll').scrollTop = 0;
   if (marker) {
-    if (active && map.hasLayer(marker)) marker.remove();
-    if (!active && !map.hasLayer(marker)) marker.addTo(map);
+    const hide = locked || (active && inRoute);
+    if (hide && map.hasLayer(marker)) marker.remove();
+    if (!hide && !map.hasLayer(marker)) marker.addTo(map);
   }
   $('#route-controls').hidden = !inRoute;
   $('#fixed-actions').hidden = inRoute;
   document.querySelectorAll('[data-location-mode]').forEach(button => {
     button.setAttribute('aria-pressed', String(button.dataset.locationMode === locationMode));
-    button.disabled = busy || (active && button.dataset.locationMode === 'fixed');
+    button.disabled = busy || (locked && button.dataset.locationMode === 'fixed');
   });
-  $('#add-route-stop').disabled = !selectedPlace || active || busy || routeStops.length >= 12;
-  $('#plan-route').disabled = routeStops.length < 2 || active || busy;
-  $('#clear-route').disabled = !routeStops.length || active || busy;
-  setContent('#route-stops', routeStops.map((stop, i) => `<li><span class="route-stop-number">${i + 1}</span><div><strong>${esc(stop.label)}</strong><small>${i === 0 ? 'Start' : i === routeStops.length - 1 ? 'Destination' : 'Via'}</small></div><button class="icon-button" data-remove-stop="${i}" aria-label="Remove stop ${i + 1}" ${active || busy ? 'disabled' : ''}>${icon('x')}</button></li>`).join(''));
-  document.querySelectorAll('[data-remove-stop]').forEach(button => { button.onclick = () => {
-    routeStops.splice(Number(button.dataset.removeStop), 1); routePlan = null; drawRoute(); renderRoute(); paintIcons();
-  }; });
+  const mode = playbackMode();
+  document.querySelectorAll('[data-travel-mode]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.travelMode === mode));
+    button.disabled = busy || locked;
+  });
+  $('#add-route-stop').disabled = !selectedPlace || locked || busy || routeStops.length >= 12;
+  $('#plan-route').disabled = routeStops.length < 2 || locked || busy;
+  $('#clear-route').disabled = !routeStops.length || locked || busy;
+  setContent('#route-stops', routeStops.map((stop, i) => `<li draggable="${!locked && !busy}" data-stop="${i}" tabindex="${locked ? -1 : 0}" aria-label="Stop ${i + 1}: ${esc(stop.label)}. Alt plus arrow keys reorder.">${locked ? '' : `<span class="route-stop-grip" aria-hidden="true">${icon('grip-vertical')}</span>`}<span class="route-stop-number">${i + 1}</span><div><strong>${esc(stop.label)}</strong><small>${i === 0 ? 'Start' : i === routeStops.length - 1 ? 'Destination' : 'Via'}</small></div><button class="icon-button" data-remove-stop="${i}" aria-label="Remove stop ${i + 1}" ${locked || busy ? 'disabled' : ''}>${icon('x')}</button></li>`).join(''));
+  document.querySelectorAll('[data-remove-stop]').forEach(button => { button.onclick = () => { routeStops.splice(Number(button.dataset.removeStop), 1); stopsChanged(); }; });
+  document.querySelectorAll('#route-stops li').forEach(item => {
+    const index = Number(item.dataset.stop);
+    item.ondragstart = event => { draggedStop = index; item.classList.add('dragging'); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(index)); };
+    item.ondragend = () => { draggedStop = null; document.querySelectorAll('#route-stops li').forEach(li => li.classList.remove('dragging', 'drop-target')); };
+    item.ondragover = event => { if (draggedStop == null) return; event.preventDefault(); item.classList.add('drop-target'); };
+    item.ondragleave = () => item.classList.remove('drop-target');
+    item.ondrop = event => { event.preventDefault(); if (draggedStop != null) moveStop(draggedStop, index); };
+    item.onkeydown = event => {
+      if (!event.altKey || locked || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      const target = index + (event.key === 'ArrowUp' ? -1 : 1);
+      moveStop(index, target);
+      document.querySelector(`#route-stops li[data-stop="${target}"]`)?.focus();
+    };
+  });
   $('#route-summary').hidden = !routePlan;
-  if (routePlan) setContent('#route-summary', `<div><strong>${(routePlan.distanceMeters / 1609.344).toFixed(2)} miles</strong><span>45 mph · 1 sec updates</span></div><progress aria-label="Route progress" max="${routePlan.distanceMeters}" value="${route?.traveledMeters || 0}"></progress><p>${route?.status === 'completed' ? 'Arrived at destination' : `${routeTime(route?.remainingSeconds ?? routePlan.durationSeconds)} ${active ? 'remaining' : 'at 45 mph'}`}</p>`);
+  if (routePlan) {
+    const shown = route && active && route.id === routePlan.id;
+    const signals = routePlan.profile?.signals?.length;
+    const details = [`${icon(modeIcons[mode])} ${MODES[mode].label}`, routePlan.provider === 'gpx' ? 'GPX track' : routePlan.provider === 'osrm' ? 'OSRM roads' : 'Valhalla roads', signals != null ? `${signals} traffic light${signals === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ');
+    const live = shown && route.status === 'running' && route.realistic ? (route.waiting ? 'Stopped at a light or junction' : `${speedText(route.speedMph || 0)}${route.limitMph ? ` · limit ${Math.round(route.limitMph)}${route.limitPosted ? '' : ' (est.)'}` : ''}`) : '';
+    const remaining = shown ? route.remainingSeconds : routeEstimate();
+    setContent('#route-summary', `<div><strong>${miles(routePlan.distanceMeters)}</strong><span class="route-details">${details}</span></div><progress aria-label="Route progress" max="${routePlan.distanceMeters}" value="${shown ? route.traveledMeters || 0 : 0}"></progress><p>${shown && route.status === 'completed' ? 'Arrived at destination' : remaining == null ? '' : `About ${routeTime(remaining)} ${shown ? 'remaining' : `at ${realisticMotion ? 'realistic speeds' : speedText(routeSpeeds[mode])}`}`}${live ? `<span class="route-live">${esc(live)}</span>` : ''}</p>`);
+  }
+  renderMotionSettings(busy);
   const device = state.devices.find(d => d.id === selectedDeviceId);
   const otherSession = state.session && state.session.deviceId !== selectedDeviceId;
   const running = route?.status === 'running', paused = route?.status === 'paused';
-  $('#route-play').disabled = busy || (active ? !running && (!paused || !device || otherSession || !['ready', 'setup-required'].includes(device.state)) : !routePlan || device?.state !== 'ready' || Boolean(otherSession));
-  $('#route-play').textContent = busy ? 'Working…' : running ? 'Pause route' : paused ? 'Resume route · 45 mph' : route?.status === 'completed' ? 'Route completed' : 'Start route · 45 mph';
-  $('#route-hint').textContent = active ? route.message : otherSession ? 'Restore the current session before switching phones.' : !routePlan ? 'Add a start and destination, then plan the route.' : !device ? 'Connect a phone to start. The route is ready.' : 'Start moves your phone to the first stop, then follows the road.';
+  $('#route-play').disabled = busy || (locked ? !running && (!paused || !device || otherSession || !['ready', 'setup-required'].includes(device.state)) : !routePlan || device?.state !== 'ready' || Boolean(otherSession));
+  $('#route-play').textContent = busy ? 'Working…' : running ? 'Pause route' : paused ? 'Resume route' : 'Start route';
+  const completed = route?.status === 'completed' && active;
+  $('#route-hint').textContent = locked ? route.message : otherSession ? 'Restore the current session before switching phones.' : completed && routePlan?.id === route.id ? route.message : !routePlan ? routeStops.length < 2 ? 'Add a start and destination, then plan the route.' : 'Plan the route to see the path and travel time.' : !device ? 'Connect a phone to start. The route is ready.' : 'Start moves your phone to the first stop, then follows the path.';
+  $('#route-from-here').hidden = !completed;
+  $('#route-from-here').disabled = busy;
+  renderSavedRoutes(busy);
   if (route?.point && inRoute) {
     const point = [route.point.latitude, route.point.longitude];
     if (!routeDot) routeDot = L.circleMarker(point, { radius: 9, color: 'white', weight: 3, fillColor: '#087bff', fillOpacity: 1, className: 'route-location-dot', interactive: false }).addTo(map);
@@ -423,7 +562,9 @@ function renderSession() {
   const recovering = ['waiting', 'unknown', 'error'].includes(session?.status);
   const recoveryText = recovering ? `<span class="session-recovery">${session.autoReconnect ? 'Ghost will retry this phone automatically. Restore cancels retry.' : 'Reconnect this phone, then retry or restore.'}</span>` : '';
   const statusIcon = session?.status === 'reconnecting' ? 'refresh-cw' : session ? ['unknown', 'error', 'waiting'].includes(session.status) ? 'help-circle' : 'map-pin' : 'circle';
-  setContent('#session-status', `<span class="session-status-icon">${icon(statusIcon, session?.status === 'reconnecting' ? 'spin' : '')}</span><div><strong>${session ? session.status === 'active' && state.route ? ({ running: 'Following route · 45 mph', paused: 'Route paused', completed: 'Arrived', starting: 'Starting route…' }[state.route.status]) : labels[session.status] || 'Session needs attention' : 'Ready'}</strong><span>${esc(state.route?.message || session?.message || (session ? session.label || 'Keep your phone connected.' : state.devices.some((device) => device.state === 'ready') ? 'Choose a place to begin.' : 'Connect a phone and choose a place.'))}</span>${recoveryText}${refreshText}</div>${session?.status === 'active' ? '<span class="live-tag"><span></span>Active</span>' : ''}`);
+  const route = state.route, verb = MODES[route?.mode]?.verb || 'Following route';
+  const runningLabel = route?.realistic ? (route.waiting ? `${verb} · stopped` : `${verb} · ${speedText(route.speedMph || 0)}`) : `${verb} · ${speedText(route?.topSpeedMph ?? 45)}`;
+  setContent('#session-status', `<span class="session-status-icon">${icon(statusIcon, session?.status === 'reconnecting' ? 'spin' : '')}</span><div><strong>${session ? session.status === 'active' && route ? ({ running: runningLabel, paused: 'Route paused', completed: 'Arrived', starting: 'Starting route…' }[route.status]) : labels[session.status] || 'Session needs attention' : 'Ready'}</strong><span>${esc(state.route?.message || session?.message || (session ? session.label || 'Keep your phone connected.' : state.devices.some((device) => device.state === 'ready') ? 'Choose a place to begin.' : 'Connect a phone and choose a place.'))}</span>${recoveryText}${refreshText}</div>${session?.status === 'active' ? '<span class="live-tag"><span></span>Active</span>' : ''}`);
 }
 
 function renderRuntime() {
@@ -479,7 +620,7 @@ function renderView() {
   $('#saved-nav-button').setAttribute('aria-pressed', String(showingSaved));
   $('#panel-eyebrow').textContent = showingSaved ? 'Library' : 'Location';
   $('#panel-title').textContent = showingSaved ? 'Saved places' : locationMode === 'route' ? 'Follow a route' : 'Set a location';
-  $('#panel-subtitle').textContent = showingSaved ? 'Select a place to return to the map.' : locationMode === 'route' ? 'Choose stops. Move along the road at 45 mph.' : 'Choose a phone and a point on the map.';
+  $('#panel-subtitle').textContent = showingSaved ? 'Select a place to return to the map.' : locationMode === 'route' ? 'Choose stops, then drive, ride or walk along real roads.' : 'Choose a phone and a point on the map.';
 }
 
 function handoffPhone() {
@@ -499,7 +640,7 @@ function renderConnections() {
   $('#wifi-handoff').hidden = !phone;
   $('#switch-to-wifi').disabled = $('#wifi-prompt-switch').disabled = Boolean(busy);
   $('#wifi-prompt-android').hidden = $('#wifi-android-note').hidden = phone?.platform !== 'android';
-  $('#wifi-prompt').hidden = !phone || state.session?.status !== 'active' || !state.network?.wifi || dismissedWifi.has(phone.id) || isPreview || !state.preferences.onboardingComplete;
+  $('#wifi-prompt').hidden = !phone || state.session?.status !== 'active' || !state.network?.wifi || dismissedWifi.has(phone.id) || (state.preferences.dismissedWifiPrompts || []).includes(phone.id) || isPreview || !state.preferences.onboardingComplete;
   $('#enable-iphone-wifi').disabled = busy || Boolean(state.session) || mode !== 'usb' || state.devices.find(device => device.id === selectedDeviceId)?.platform !== 'ios';
   const recoveringAndroid = state.session?.platform === 'android' && state.session?.connection === 'wifi' && ['waiting', 'unknown', 'error'].includes(state.session?.status);
   $('#wifi-pair-button').disabled = $('#wifi-connect-button').disabled = busy || (Boolean(state.session) && !recoveringAndroid) || mode !== 'wifi';
@@ -549,7 +690,12 @@ function openSave(place = selectedPlace) {
   $('#place-name').select();
 }
 
-map.on('click', (event) => { const point = event.latlng.wrap(); selectPlace({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' }, false); });
+map.on('click', (event) => {
+  const point = event.latlng.wrap();
+  // In Route mode a click adds the next stop; elsewhere it moves the preview pin.
+  if (locationMode === 'route' && !routeLocked() && currentView === 'map') { addRouteStop({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' }); return; }
+  selectPlace({ latitude: point.lat, longitude: point.lng, label: 'Dropped pin' }, false);
+});
 map.on('moveend', () => { const center = map.getCenter().wrap(); $('#map-coordinates').textContent = `${formatCoordinate(center.lat)} · ${formatCoordinate(center.lng, false)}`; });
 map.on('dragstart', () => { $('#search-results').hidden = true; });
 $('#zoom-in').onclick = () => map.zoomIn();
@@ -570,16 +716,75 @@ $('#rerun-onboarding').onclick = () => { $('#settings-dialog').close(); openOnbo
 $('#save-button').onclick = () => openSave();
 $('#apply-button').onclick = () => { if (selectedPlace && selectedDeviceId) runOperation(() => api.applyLocation({ deviceId: selectedDeviceId, ...selectedPlace })); };
 document.querySelectorAll('[data-location-mode]').forEach(button => { button.onclick = () => { locationMode = button.dataset.locationMode; drawRoute(); render(); }; });
-$('#add-route-stop').onclick = () => {
-  if (!selectedPlace || routeStops.length >= 12) return;
-  routeStops.push({ ...selectedPlace }); routePlan = null; drawRoute(); renderRoute(); paintIcons();
+const savePreferences = preferences => api.updatePreferences(preferences).then(acceptState).catch(error => notify(error.message, true));
+document.querySelectorAll('[data-travel-mode]').forEach(button => { button.onclick = () => {
+  const mode = button.dataset.travelMode;
+  if (mode === playbackMode() || routeLocked()) return;
+  routeMode = mode;
+  // A routed plan follows one network (roads, bike lanes or footpaths), so it needs planning again.
+  if (routePlan && routePlan.provider !== 'gpx') { setRoutePlan(null); drawRoute(); }
+  estimateCache = null; render();
+  savePreferences({ routeMode: mode });
+}; });
+let speedTimer;
+$('#speed-slider').oninput = () => {
+  const mode = playbackMode();
+  routeSpeeds[mode] = clampSpeedMph(mode, Number($('#speed-slider').value));
+  $('#speed-value').textContent = speedText(routeSpeeds[mode]);
+  clearTimeout(speedTimer);
+  speedTimer = setTimeout(() => {
+    savePreferences({ routeSpeeds: { [mode]: routeSpeeds[mode] } });
+    if (routeLocked() && state.route.mode === mode) api.updateRouteOptions({ topSpeedMph: routeSpeeds[mode] }).then(acceptState).catch(error => notify(error.message, true));
+  }, 250);
+  renderRoute(); paintIcons();
 };
-$('#clear-route').onclick = () => { routeStops = []; routePlan = null; drawRoute(); renderRoute(); paintIcons(); };
+$('#realistic-toggle').onchange = () => {
+  realisticMotion = $('#realistic-toggle').checked;
+  savePreferences({ realisticMotion });
+  if (routeLocked()) api.updateRouteOptions({ realistic: realisticMotion }).then(acceptState).catch(error => notify(error.message, true));
+  renderRoute(); paintIcons();
+};
+$('#add-route-stop').onclick = () => { if (selectedPlace) addRouteStop(selectedPlace); };
+$('#clear-route').onclick = () => { routeStops = []; stopsChanged(); };
 $('#plan-route').onclick = async () => {
-  const planned = await runOperation(() => api.planRoute(routeStops));
-  if (planned) { routePlan = planned; drawRoute(); fitRoute(); renderRoute(); paintIcons(); }
+  const planned = await runOperation(() => api.planRoute({ waypoints: routeStops, mode: routeMode }));
+  if (planned) { setRoutePlan(planned); drawRoute(); fitRoute(); renderRoute(); paintIcons(); }
 };
-$('#route-play').onclick = () => runOperation(() => state.route?.status === 'running' ? api.pauseRoute() : state.route?.status === 'paused' ? api.resumeRoute() : api.startRoute({ deviceId: selectedDeviceId, routeId: routePlan?.id }));
+$('#route-play').onclick = () => runOperation(() => state.route?.status === 'running' && routeLocked() ? api.pauseRoute() : state.route?.status === 'paused' && routeLocked() ? api.resumeRoute()
+  : api.startRoute({ deviceId: selectedDeviceId, routeId: routePlan?.id, mode: playbackMode(), realistic: realisticMotion, topSpeedMph: clampSpeedMph(playbackMode(), routeSpeeds[playbackMode()]) }));
+$('#route-from-here').onclick = () => {
+  const session = state.session;
+  if (!session || routeLocked()) return;
+  routeStops = [{ latitude: session.latitude, longitude: session.longitude, label: 'Current location' }];
+  stopsChanged();
+  notify('Start set to the phone’s current location. Click the map to add a destination.');
+};
+function openRouteName(route = null) {
+  routeBeingNamed = route;
+  $('#route-name-title').textContent = route ? 'Rename route' : 'Save this route';
+  $('#route-name-submit').textContent = route ? 'Rename route' : 'Save route';
+  $('#route-name').value = route?.name || routePlan?.name || `Route to ${routePlan?.waypoints?.at(-1)?.label || 'destination'}`;
+  $('#route-name-dialog').showModal();
+  $('#route-name').select();
+}
+$('#save-route').onclick = () => { if (routePlan) openRouteName(); };
+$('#route-name-form').onsubmit = async (event) => {
+  event.preventDefault();
+  const name = $('#route-name').value.trim();
+  if (!name) return;
+  const result = await runOperation(() => routeBeingNamed ? api.renameSavedRoute({ id: routeBeingNamed.id, name }) : api.saveRoute({ name }), routeBeingNamed ? 'Route renamed.' : 'Route saved.');
+  if (result) { if (!routeBeingNamed && routePlan) routePlan = { ...routePlan, name }; $('#route-name-dialog').close(); }
+};
+$('#import-gpx').onclick = async () => {
+  const result = await runOperation(() => api.importGpx({ mode: routeMode }));
+  if (!result || result.canceled) return;
+  if (result.route) { showLoadedRoute(result.route); notify('GPX track imported. It replays the recorded path exactly.'); }
+  else if (result.stops) { setRoutePlan(null); routeStops = result.stops; drawRoute(); render(); notify(`Imported ${result.stops.length} stops. Plan the route to continue.`); }
+};
+$('#export-gpx').onclick = async () => {
+  const result = await runOperation(() => api.exportGpx());
+  if (result?.saved) notify(`Exported ${result.fileName}.`);
+};
 $('#restore-button').onclick = () => runOperation(() => api.stopLocation(), 'Restore command accepted. Phone apps may need a moment to refresh.', 'restore');
 $('#toast-close').onclick = () => { $('#toast').hidden = true; clearTimeout(toastTimer); };
 $('#install-runtime').onclick = () => runOperation(() => api.installRuntime(), 'Device tools checked.');
@@ -613,7 +818,11 @@ $('#connection-options').onclick = () => {
   $('#wifi-dialog').showModal();
 };
 $('#wifi-prompt-switch').onclick = $('#switch-to-wifi').onclick = switchToWifi;
-$('#wifi-prompt-dismiss').onclick = () => { const phone = handoffPhone(); if (phone) dismissedWifi.add(phone.id); renderConnections(); };
+$('#wifi-prompt-dismiss').onclick = () => {
+  const phone = handoffPhone();
+  if (phone) { dismissedWifi.add(phone.id); savePreferences({ dismissWifiPrompt: phone.id }); }
+  renderConnections();
+};
 $('#wifi-phone').onchange = renderConnections;
 $('#wifi-dialog').addEventListener('close', () => { $('#wifi-pair-code').value = ''; });
 document.querySelectorAll('[data-connection]').forEach(button => {
@@ -647,7 +856,11 @@ $('#search-form').onsubmit = async (event) => {
     const results = await api.searchPlaces(query);
     if (request !== searchNumber) return;
     $('#search-results').innerHTML = results.length ? results.slice(0, 7).map((place, index) => `<button class="search-result" data-result="${index}">${icon('map-pin')}<span><strong>${esc(place.label)}</strong><small>${Number(place.latitude).toFixed(5)}, ${Number(place.longitude).toFixed(5)}</small></span>${icon('arrow-up-right')}</button>`).join('') + '<div class="search-attribution">Search by Photon · © OpenStreetMap</div>' : '<div class="search-message">No places found. Try a nearby city or coordinates.</div>';
-    document.querySelectorAll('[data-result]').forEach((button) => { button.onclick = () => { const place = results[Number(button.dataset.result)]; selectPlace(place); $('#search-input').value = place.label; }; });
+    document.querySelectorAll('[data-result]').forEach((button) => { button.onclick = () => {
+      const place = results[Number(button.dataset.result)];
+      selectPlace(place); $('#search-input').value = place.label;
+      if (locationMode === 'route' && addRouteStop(place)) notify(`Added ${place.label} as stop ${routeStops.length}.`);
+    }; });
   } catch (error) {
     if (request !== searchNumber) return;
     $('#search-results').innerHTML = `<div class="search-message search-error">${icon('help-circle')}<span>${esc(error.message || 'Search is unavailable. Try again, or enter coordinates.')}</span></div>`;
@@ -667,6 +880,6 @@ api.getState().then(async next => {
   acceptState(next);
   if (api.getRoute) {
     const planned = await api.getRoute();
-    if (planned) { routePlan = planned; routeStops = planned.waypoints; drawRoute(); renderRoute(); paintIcons(); }
+    if (planned) { setRoutePlan(planned); routeStops = planned.waypoints; if (MODES[planned.mode] && planned.provider !== 'gpx') routeMode = planned.mode; drawRoute(); render(); }
   }
 }).catch((error) => notify(`Ghost could not initialize: ${error.message}`, true));

@@ -136,10 +136,11 @@ try {
   await page.locator('#route-summary').waitFor({timeout: 25000});
   const planned = await page.evaluate(() => window.ghost.getRoute());
   assert.ok(planned.coordinates.length > 2, 'A real road route should contain road geometry.');
-  assert.equal(planned.speedMph, 45);
+  assert.equal(planned.mode, 'drive');
+  assert.ok(['valhalla', 'osrm'].includes(planned.provider));
   await page.waitForTimeout(1100);
   await page.screenshot({path: path.join(output, 'ghost-route-preview.png')});
-  console.log(`Live OSRM road route: ${planned.coordinates.length} points, ${Math.round(planned.distanceMeters)} metres. No route started.`);
+  console.log(`Live ${planned.provider} road route: ${planned.coordinates.length} points, ${Math.round(planned.distanceMeters)} metres. No route started.`);
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 680));
   await page.screenshot({ path: path.join(output, 'ghost-compact.png') });
   const final = await page.evaluate(() => window.ghost.getState());

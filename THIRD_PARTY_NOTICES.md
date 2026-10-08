@@ -35,7 +35,14 @@ https://github.com/komoot/photon#demo-server
 
 The application does not use the public Nominatim search API.
 
-Road routing uses the public OSRM demo API on explicit request. OSRM is BSD-2-Clause;
+Road routing first uses the public Valhalla service operated by FOSSGIS
+(valhalla1.openstreetmap.de) on explicit request. Valhalla is MIT-licensed; Ghost does
+not bundle its server. Source: https://github.com/valhalla/valhalla
+Stop coordinates, then the planned path, are sent to the service when the user plans a
+route. Fair use only, no uptime guarantee; Ghost spaces requests one second apart.
+
+If Valhalla is unavailable, routing falls back to the public OSRM demo API (car) and the
+FOSSGIS OSRM bike and foot servers (routing.openstreetmap.de). OSRM is BSD-2-Clause;
 Ghost does not bundle its server. Source: https://github.com/Project-OSRM/osrm-backend
 The service uses OpenStreetMap data (ODbL). Stop coordinates are sent to the service
 when the user plans a route; playback uses the downloaded geometry locally.

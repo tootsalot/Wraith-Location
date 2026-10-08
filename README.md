@@ -22,7 +22,11 @@ The downloads include the phone runtimes. No programming tools or Ghost account 
 ## Features
 
 
-- Road routes through up to 12 stops, 45 mph movement, one-second updates, Pause and Resume.
+- Drive, bike or walk routes through up to 12 stops, with one-second updates, Pause and Resume.
+- Realistic motion: posted speed limits (drivers run about 5 mph over), slowing for corners, real traffic-light stops, natural pace changes and GPS drift. It can be switched off for exact constant-speed playback.
+- A top-speed slider for each travel mode, adjustable while a route runs.
+- After arrival, plan another route, start one from the phone's current position, or set a fixed location, all without restoring real GPS first.
+- Click the map to add stops, drag stops to reorder or move them, and save routes (full path) to replay later. GPX tracks import and export.
 - Interactive map, manual place search, draggable pin, and latitude/longitude input.
 - First-run Mac/Windows and iPhone/Android survey with a checklist tailored to all four USB configurations.
 - Saved places and recent selections stored locally.
@@ -134,38 +138,67 @@ stuck.
 
 ## Route playback
 
-Choose **Route**, select a start using search, coordinates, or a map pin, and click
-**Add selected pin to route**. Repeat for the destination and any intermediate
-stops, in order. **Plan road route** previews the driving route. **Start route**
-moves the selected phone to the first road point and begins playback.
+Choose **Route** and a travel mode (**Drive**, **Bike** or **Walk**). Click the map to
+add stops in order, or use search or coordinates and **Add selected pin to route**
+(in Route mode, choosing a search result adds it directly). Drag stops in the list,
+or press Alt+Up/Down, to reorder them; drag numbered markers to move them.
+**Plan route** previews the path and an estimated time. **Start route** moves the
+selected phone to the first point and begins playback.
 
-Ghost uses the open-source [OSRM](https://github.com/Project-OSRM/osrm-backend)
-routing service with OpenStreetMap roads. Pins snap to roads within 1 km; if no
-connected driving route exists, planning fails instead of drawing a straight line.
-The speed is fixed at **45 mph (20.1168 m/s)** along the full geometry, irrespective
-of traffic or speed limits. Location commands run every second in the desktop
-backend, including while the window is minimized. The blue dot shows the last
-sent point, not an independently measured phone position. Android reuses Appium
-Settings' immediate update on each new target; its idle heartbeat remains two seconds.
+Ghost plans with the open-source [Valhalla](https://github.com/valhalla/valhalla)
+service run by FOSSGIS on OpenStreetMap data, then reads the road attributes along
+the path: posted speed limits where mapped, estimated road speeds elsewhere, and
+traffic signals. If Valhalla is unavailable, Ghost falls back to
+[OSRM](https://github.com/Project-OSRM/osrm-backend) (with estimated limits and no
+signal data). Pins snap to roads or paths within 1 km; if no connected route exists,
+planning fails instead of drawing a straight line.
 
-**Pause** holds the last point. **Resume** continues from there. Arrival holds the
-exact destination; **Restore real location** stops simulation. Disconnect and sleep
+With **Realistic motion** on (the default), drivers cruise about 5 mph over the
+posted limit (3–9 mph as the pace drifts), never above the **Top speed** slider.
+They accelerate and brake smoothly, slow for corners based on their sharpness, and
+stop at roughly one traffic light in four, usually for 5–15 seconds and at most 30.
+A red is less likely just after stopping, as on coordinated signals. Without signal
+data, occasional stops are placed at sharp junctions and on slower roads. Cyclists and walkers
+move a little below the slider speed and wait at crossings. Reported positions
+drift a few metres like real GPS, and arrival holds the exact destination. With
+realism off, the phone moves at exactly the slider speed. The slider and the
+toggle can change while a route runs. Location commands run every second in the
+desktop backend, including while the window is minimized. The blue dot shows the
+last sent point, not an independently measured phone position. Android reuses
+Appium Settings' immediate update on each new target; its idle heartbeat remains
+two seconds.
+
+**Pause** holds the last point. **Resume** continues from standstill. Arrival holds the
+exact destination and unlocks route editing: plan another route, choose **New route
+from here** to start from the phone's current point, load a saved route, or switch
+to **Fixed location**, all without returning the phone to its real GPS position.
+**Restore real location** stops simulation. Disconnect and sleep
 pause motion. Reconnection holds the last attempted point on the same phone until
 you press Resume. Slow commands or scheduling stalls pause rather than building a
 backlog or jumping ahead. Timings depend on the operating system and connection latency;
 the app does not guarantee that every phone app consumes each fix.
 
-Route geometry and progress stay in memory. Restarting Ghost does not resume a
-route; it keeps the existing recovery record for Retry or Restore. Restore before
-editing an active route or changing phones.
+Route progress stays in memory. Restarting Ghost does not resume a route; it keeps
+the existing recovery record for Retry or Restore. Wait for arrival or Restore
+before editing a running or paused route, and Restore before changing phones.
+
+### Saved routes and GPX
+
+The bookmark button under **Saved routes** stores the planned route, including its
+full path and road data, in `routes.json` beside the settings file. A saved route
+replays without contacting the routing service. **Import GPX** turns a track into a
+ready route that follows the recorded path exactly; tracks with timestamps replay at
+their recorded speeds when realistic motion is on. A GPX route of up to 12 points
+becomes stops to plan. **Export GPX** writes the stops and the full path.
 
 ## Maps, search, and privacy
 
 Search sends your submitted text to the configured Photon provider. Viewing the map
 requests tiles from OpenStreetMap. Device identifiers and saved/session coordinates
 stay in the local application settings file. Planning a route sends the chosen
-stop coordinates (without device identifiers) to the public OSRM service. Route
-playback itself makes no routing-service requests. Search is rate-limited and cached for
+stop coordinates (without device identifiers) to the public Valhalla service, and
+the resulting path back to it for road attributes, or to OSRM as a fallback. Route
+playback, saved routes and GPX files make no routing-service requests. Search is rate-limited and cached for
 the running app; there is no autocomplete, background geocoding, or offline tile
 download. Pin and coordinate selection remain available if search fails.
 
@@ -173,10 +206,10 @@ The default Photon public demo is appropriate only for moderate use and has no
 availability guarantee. Change the HTTPS Photon API endpoint in Settings for a
 larger public deployment. See THIRD_PARTY_NOTICES.md.
 
-The OSRM demo service is for reasonable noncommercial use, capped at one request
-per second, with no uptime guarantee. Ghost requests it only on **Plan road route**.
-See [OSRM's demo policy](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server).
-A larger public deployment needs its own routing service instead of relying on the demo.
+The FOSSGIS Valhalla and OSRM demo services are for reasonable noncommercial use,
+with no uptime guarantee. Ghost contacts them only on **Plan route**, spacing its
+requests a second apart. See [OSRM's demo policy](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server).
+A larger public deployment needs its own routing service instead of relying on these.
 
 ## Build installers
 
@@ -224,7 +257,9 @@ phone/OS compatibility.
 `npm test` checks USB filtering, exact-device targeting, argument handling,
 adapter failures, acknowledgement handling, fixed-target refresh, same-process
 reconnection, cancellation, persisted crash recovery, concurrency,
-search validation, saved settings, route interpolation, one-second scheduling,
+search validation, saved settings, route interpolation, Valhalla/OSRM planning and
+fallback, realistic motion (limits, corners, signals, drift, speed caps), arrival
+unlock, saved routes, GPX import/export, one-second scheduling,
 pause/resume, arrival, slow transport, and cancellation during an in-flight update. Sidecar-specific Python tests are in
 `sidecar/` where applicable. See docs/hardware-test-matrix.md for on-device checks.
 
@@ -234,7 +269,7 @@ It replaces only the USB/tunnel/DVT peer, then checks repeated acknowledgements,
 an in-place target update, concurrent discovery, and post-Restore silence.
 
 `npm run test:native` launches Electron with isolated settings and exercises map
-search, live OSRM road planning, coordinates, saved-place create/rename/delete, setup, preferences, and a
+search, live Valhalla road planning, coordinates, saved-place create/rename/delete, setup, preferences, and a
 compact window. It performs read-only USB discovery but never invokes phone
 preparation, Set, or Restore. Screenshots are written to `artifacts/`. It requires
 a graphical desktop; live search and map tiles need internet access.
