@@ -1,23 +1,49 @@
-# Ghost
+# Wraith
 
 A small Electron app for setting a fixed phone location or following a road route over USB or Wi-Fi. Search for a
 place, drop a pin, or enter coordinates, then explicitly apply it to your selected
 phone. Windows and macOS share one interface and use the appropriate iPhone or
 Android adapter.
 
-Current version: **0.1.7**. See [CHANGELOG.md](CHANGELOG.md) for the onboarding,
-interface, Android cleanup, Windows packaging, recovery-record, and reconnection changes.
+Current version: **0.2.0**. See [CHANGELOG.md](CHANGELOG.md) for realistic routes,
+travel modes, saved routes, GPX, and earlier changes.
 
-![Ghost following an example road route in Chicago](docs/images/ghost-route.png)
+Wraith is a modified version of [Ghost](https://github.com/Blueturboguy07/ghost-location)
+by the Ghost contributors, renamed and extended by Tootsalot. Like Ghost, it is free
+software under the GNU GPL v3 or later; see [License](#license).
 
-*Route mode in the actual interface, using an example phone and sample Chicago route.*
+![Wraith following an example road route in Chicago](docs/images/ghost-route.png)
 
-## Download and install
+*Route mode in the original Ghost interface, using an example phone and sample Chicago route.*
 
-Get [Ghost 0.1.7 for Mac or Windows](https://github.com/Blueturboguy07/ghost-location/releases/tag/v0.1.7).
-Follow the [setup guide](SETUP.md) for Mac → iPhone, Windows → iPhone, Mac → Android, or Windows → Android, or use [Publik's guided install](https://publikhq.com/ghost/install).
+## Build and run locally
 
-The downloads include the phone runtimes. No programming tools or Ghost account are needed. These early releases are unsigned; the guide explains opening them and the limits of current device testing.
+Wraith has no prebuilt downloads yet. On Windows or macOS, with Node.js 24 LTS and npm:
+
+```sh
+npm ci
+npm run runtime:prepare
+npm run pack
+```
+
+`npm run pack` creates a ready-to-run app in `release/` (`release/win-unpacked/Wraith.exe`
+on Windows). `npm run dist` builds an installer instead (`Wraith-0.2.0-win-x64.exe`).
+Rebuild with `npm run pack` after pulling changes. The `release/` folder is not committed.
+
+Building the iPhone runtime needs Python 3.12 or 3.13. If it isn't installed, `uv` can
+provide one without a system-wide install:
+
+```sh
+uv python install 3.12
+GHOST_BUILD_PYTHON="$(uv python find 3.12)" npm run runtime:prepare
+```
+
+In PowerShell, set the variable with `$env:GHOST_BUILD_PYTHON = (uv python find 3.12)` first.
+
+Then follow the [setup guide](SETUP.md) for Mac → iPhone, Windows → iPhone, Mac → Android,
+or Windows → Android. The first time a packaged Wraith starts, it copies saved places,
+setup choices and saved routes from an existing Ghost installation; Ghost's own files are
+left untouched.
 
 ## Features
 
@@ -30,10 +56,10 @@ The downloads include the phone runtimes. No programming tools or Ghost account 
 - Interactive map, manual place search, draggable pin, and latitude/longitude input.
 - First-run Mac/Windows and iPhone/Android survey with a checklist tailored to all four USB configurations.
 - Saved places and recent selections stored locally.
-- A one-click USB → Wi-Fi handoff keeps the current location and resumes routes. Ghost offers it after a working USB session when the computer has Wi-Fi. Android 11+ also supports cable-free pairing.
+- A one-click USB → Wi-Fi handoff keeps the current location and resumes routes. Wraith offers it after a working USB session when the computer has Wi-Fi. Android 11+ also supports cable-free pairing.
 - iPhone location simulation through a bundled pymobiledevice3 sidecar.
 - Android location simulation through bundled ADB and Appium Settings.
-- Ongoing fixed-location updates and same-phone reconnection while Ghost stays open.
+- Ongoing fixed-location updates and same-phone reconnection while Wraith stays open.
 - Automatic stale recovery-record cleanup when a different usable USB phone appears.
 - Explicit restoration, normal-quit cleanup, and a persisted recovery journal.
 - Honest disconnected/error states: lost connectivity never means “restored”.
@@ -61,19 +87,19 @@ available inside Electron. For a production renderer inside Electron: `npm start
 
 ## Device setup
 
-On first launch, choose the computer and phone you use. Ghost saves that choice
+On first launch, choose the computer and phone you use. Wraith saves that choice
 locally and shows only the relevant setup checklist. Open **Setup** in the toolbar
 or **Change** in Settings to review or switch configurations later.
 
 **iPhone (initial target: iOS 17.4+):** connect with a USB data cable, unlock and
 trust the computer, enable Developer Mode in Settings → Privacy & Security, and
-restart when requested. Use Ghost's Prepare action to mount the developer support
+restart when requested. Use Wraith's Prepare action to mount the developer support
 image. Initial preparation requires internet and can take a few minutes. Windows
 also needs Apple's USB services/drivers (upstream recommends Microsoft Store
 iTunes). The application does not remove passcodes or change Find My settings.
 
 **Android (8.0+):** enable Developer options and USB debugging, connect a USB data
-cable, and approve the computer's RSA prompt. Ghost's explicit Prepare action
+cable, and approve the computer's RSA prompt. Wraith's explicit Prepare action
 installs Appium Settings, grants location access, and selects it as the mock-location
 provider. Follow any additional device-specific prompts. Some Windows phones need
 the manufacturer's ADB USB driver. No root is required by this approach.
@@ -83,14 +109,14 @@ the manufacturer's ADB USB driver. No root is required by this approach.
 Selecting a map pin only changes the preview. **Set location** starts or updates a
 fixed location on the selected phone. Only one unresolved phone session is
 kept at a time. When an unknown, waiting, or error recovery record belongs to a
-different phone and Ghost discovers another usable USB phone, Ghost automatically
+different phone and Wraith discovers another usable USB phone, Wraith automatically
 discards the old record so the newly connected phone can be prepared or have a
 location set.
 Active, applying, reconnecting, and stopping sessions remain protected from this
 automatic cleanup.
 
 On iPhone, the sidecar reasserts the selected coordinates on a one-second loop.
-Each DVT location command is awaited before Ghost records its acknowledgement.
+Each DVT location command is awaited before Wraith records its acknowledgement.
 Fresh acknowledgements also keep the selected USB connection ready during
 discovery polling, so a transient discovery miss does not gray out a healthy
 session. On Android, the on-phone helper emits timestamped mock fixes every two
@@ -105,12 +131,12 @@ Verify the result in the intended phone app.
 **Restore** stops the Android mock service or sends the iOS clear-location command.
 The iOS clear API does not return an independent real-GPS measurement; cached
 locations in other apps can take time to update. Normal quit attempts restoration
-by default. If that fails, Ghost offers to keep the app open or quit with an
+by default. If that fails, Wraith offers to keep the app open or quit with an
 unresolved session saved for recovery.
 
-If the phone disconnects during a live session, Ghost waits and automatically reconnects
+If the phone disconnects during a live session, Wraith waits and automatically reconnects
 the **same phone and applied target** when it becomes available again, while the
-same Ghost process remains open. Selecting another pin still changes only the
+same Wraith process remains open. Selecting another pin still changes only the
 preview; use **Update location** to apply that target. You can also use **Retry
 location** or **Reconnect & set location** on the same phone after a connection
 failure. While the previous session is active, applying, reconnecting, or stopping,
@@ -123,13 +149,13 @@ phone is absent or cannot be verified, it may retain its last simulated location
 until it is restarted or restored separately.
 
 **Restore** cancels automatic reconnection, including while the cable is absent.
-If reconnection is already in progress, Ghost waits for that bounded operation
-before clearing the simulation. An unplugged phone must reconnect before Ghost
+If reconnection is already in progress, Wraith waits for that bounded operation
+before clearing the simulation. An unplugged phone must reconnect before Wraith
 can send the clear command.
 
 USB unplug, laptop sleep, force-quit, and a crashed helper cannot guarantee immediate
 restoration. Android's upstream helper can keep supplying its last coordinates
-without the cable. After Ghost restarts, continuing or clearing a saved session on
+without the cable. After Wraith restarts, continuing or clearing a saved session on
 the same phone requires a manual **Retry location** or **Restore**; it is never
 automatically resumed on startup. A different usable phone instead triggers the
 unresolved-record cleanup described above.
@@ -145,10 +171,10 @@ or press Alt+Up/Down, to reorder them; drag numbered markers to move them.
 **Plan route** previews the path and an estimated time. **Start route** moves the
 selected phone to the first point and begins playback.
 
-Ghost plans with the open-source [Valhalla](https://github.com/valhalla/valhalla)
+Wraith plans with the open-source [Valhalla](https://github.com/valhalla/valhalla)
 service run by FOSSGIS on OpenStreetMap data, then reads the road attributes along
 the path: posted speed limits where mapped, estimated road speeds elsewhere, and
-traffic signals. If Valhalla is unavailable, Ghost falls back to
+traffic signals. If Valhalla is unavailable, Wraith falls back to
 [OSRM](https://github.com/Project-OSRM/osrm-backend) (with estimated limits and no
 signal data). Pins snap to roads or paths within 1 km; if no connected route exists,
 planning fails instead of drawing a straight line.
@@ -178,7 +204,7 @@ you press Resume. Slow commands or scheduling stalls pause rather than building 
 backlog or jumping ahead. Timings depend on the operating system and connection latency;
 the app does not guarantee that every phone app consumes each fix.
 
-Route progress stays in memory. Restarting Ghost does not resume a route; it keeps
+Route progress stays in memory. Restarting Wraith does not resume a route; it keeps
 the existing recovery record for Retry or Restore. Wait for arrival or Restore
 before editing a running or paused route, and Restore before changing phones.
 
@@ -207,7 +233,7 @@ availability guarantee. Change the HTTPS Photon API endpoint in Settings for a
 larger public deployment. See THIRD_PARTY_NOTICES.md.
 
 The FOSSGIS Valhalla and OSRM demo services are for reasonable noncommercial use,
-with no uptime guarantee. Ghost contacts them only on **Plan route**, spacing its
+with no uptime guarantee. Wraith contacts them only on **Plan route**, spacing its
 requests a second apart. See [OSRM's demo policy](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server).
 A larger public deployment needs its own routing service instead of relying on these.
 
@@ -228,8 +254,8 @@ device runtimes. Release installers are unsigned. Signing/notarization credentia
 for a trusted macOS launch and a recognized Windows publisher.
 No publishing or repository upload is performed by these commands.
 
-For v0.1.7, a macOS arm64 build produces `Ghost-0.1.7-mac-arm64.dmg` and
-`Ghost-0.1.7-mac-arm64.zip` in `release/`.
+For v0.2.0, a macOS arm64 build produces `Wraith-0.2.0-mac-arm64.dmg` and
+`Wraith-0.2.0-mac-arm64.zip` in `release/`.
 
 ### Native CI builds
 
@@ -294,5 +320,12 @@ before claiming all four connections are verified.
 ## License
 
 GPL-3.0-or-later. See LICENSE and THIRD_PARTY_NOTICES.md.
+
+Wraith is based on [Ghost](https://github.com/Blueturboguy07/ghost-location), copyright
+the Ghost contributors, and is distributed under the same license. Tootsalot modified it
+in October 2026 (version 0.2.0): renamed it to Wraith, added realistic route motion,
+travel modes, saved routes, GPX support and route editing after arrival, and changed
+the routing provider. The full history of changes is in this repository's git log.
+"Ghost" is the upstream project's name; Wraith is not affiliated with or endorsed by it.
 
 For wireless setup, see [the Wi-Fi guide](SETUP.md#connect-over-the-same-wi-fi-network-017). Wi-Fi support is implemented and covered by automated tests; physical phone validation is still needed.

@@ -68,8 +68,8 @@ export function parseGpx(xml) {
   };
 }
 
-export function toGpx(route, name = route.name || 'Ghost route') {
-  const lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<gpx version="1.1" creator="Ghost" xmlns="http://www.topografix.com/GPX/1/1">', `  <metadata><name>${escape(name)}</name></metadata>`, `  <rte><name>${escape(name)}</name>`];
+export function toGpx(route, name = route.name || 'Wraith route') {
+  const lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<gpx version="1.1" creator="Wraith" xmlns="http://www.topografix.com/GPX/1/1">', `  <metadata><name>${escape(name)}</name></metadata>`, `  <rte><name>${escape(name)}</name>`];
   for (const stop of route.waypoints) lines.push(`    <rtept lat="${stop.latitude}" lon="${stop.longitude}"><name>${escape(stop.label || '')}</name></rtept>`);
   lines.push('  </rte>', `  <trk><name>${escape(name)}</name><type>${escape(route.mode || 'drive')}</type><trkseg>`);
   for (const [lon, lat] of route.coordinates) lines.push(`    <trkpt lat="${lat}" lon="${lon}"/>`);

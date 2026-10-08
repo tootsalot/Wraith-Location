@@ -43,7 +43,7 @@ const setupGuides = {
     steps: [
       ['Connect and trust', 'Unlock your iPhone, connect it to your Mac with a USB data cable, then tap Trust on the iPhone if prompted.'],
       ['Turn on Developer Mode', 'On iPhone, open Settings → Privacy & Security → Developer Mode. Turn it on, restart, then confirm with your passcode.'],
-      ['Prepare the device tools', 'Keep the Mac online for the first setup. In Ghost, select the iPhone and choose Prepare so Ghost can mount the matching developer support image.'],
+      ['Prepare the device tools', 'Keep the Mac online for the first setup. In Wraith, select the iPhone and choose Prepare so Wraith can mount the matching developer support image.'],
       ['Keep the cable connected', 'Leave the iPhone connected while a location is active. Use Restore real location before unplugging when possible.'],
     ],
   },
@@ -54,7 +54,7 @@ const setupGuides = {
       ['Install Apple Devices', 'Install or update the Apple Devices app from the Microsoft Store. Open it once so Windows can load Apple’s USB services.'],
       ['Connect and trust', 'Unlock your iPhone, connect it with a USB data cable, select it in Apple Devices, then confirm Trust on both the PC and iPhone if prompted.'],
       ['Turn on Developer Mode', 'On iPhone, open Settings → Privacy & Security → Developer Mode. Turn it on, restart, then confirm with your passcode.'],
-      ['Prepare in Ghost', 'Return to Ghost, select the iPhone, and choose Prepare. Keep the PC online during the first preparation.'],
+      ['Prepare in Wraith', 'Return to Wraith, select the iPhone, and choose Prepare. Keep the PC online during the first preparation.'],
     ],
   },
   'mac:android': {
@@ -64,7 +64,7 @@ const setupGuides = {
       ['Unlock Developer options', 'On Android, open Settings → About phone and tap Build number seven times. Enter your screen lock if asked.'],
       ['Enable USB debugging', 'Open Settings → System → Developer options and turn on USB debugging. Menu names can vary by phone maker.'],
       ['Connect and authorize', 'Use a USB data cable, keep the phone unlocked, and accept the Allow USB debugging prompt for this Mac. No Mac USB driver is normally needed.'],
-      ['Prepare the location helper', 'In Ghost, select the phone and choose Prepare. If Android asks for a mock location app, choose Appium Settings.'],
+      ['Prepare the location helper', 'In Wraith, select the phone and choose Prepare. If Android asks for a mock location app, choose Appium Settings.'],
     ],
   },
   'windows:android': {
@@ -74,7 +74,7 @@ const setupGuides = {
       ['Check the USB driver', 'Connect with a USB data cable. If Windows does not detect the phone, install the ADB USB driver from your phone manufacturer.'],
       ['Unlock Developer options', 'On Android, open Settings → About phone and tap Build number seven times. Enter your screen lock if asked.'],
       ['Enable and authorize debugging', 'Turn on USB debugging in Developer options, reconnect the cable, and accept the computer’s RSA authorization prompt.'],
-      ['Prepare the location helper', 'In Ghost, select the phone and choose Prepare. If Android asks for a mock location app, choose Appium Settings.'],
+      ['Prepare the location helper', 'In Wraith, select the phone and choose Prepare. If Android asks for a mock location app, choose Appium Settings.'],
     ],
   },
 };
@@ -108,7 +108,7 @@ let lastWarning = null;
 $('#app').innerHTML = `
   <header class="titlebar">
     <div class="window-inset" aria-hidden="true"></div>
-    <a class="wordmark" href="#" aria-label="Ghost map"><span class="rail-emblem">${icon('map-pin')}</span><span>Ghost</span></a>
+    <a class="wordmark" href="#" aria-label="Wraith map"><span class="rail-emblem">${icon('map-pin')}</span><span>Wraith</span></a>
     <div class="titlebar-right">
       <span class="preview-label" ${isPreview ? '' : 'hidden'}>Preview</span>
       <button id="saved-nav-button" class="toolbar-button" data-view="saved">${icon('bookmark')}<span>Saved</span><span class="toolbar-count" id="saved-dot" hidden></span></button>
@@ -173,7 +173,7 @@ $('#app').innerHTML = `
     </aside>
   </div>
 
-  <dialog id="onboarding-dialog" class="onboarding-dialog" aria-labelledby="onboarding-title"><div class="onboarding-chrome"><span class="onboarding-brand">${icon('map-pin')} Ghost</span><span id="onboarding-progress">1 of 2</span></div><div id="onboarding-content"></div></dialog>
+  <dialog id="onboarding-dialog" class="onboarding-dialog" aria-labelledby="onboarding-title"><div class="onboarding-chrome"><span class="onboarding-brand">${icon('map-pin')} Wraith</span><span id="onboarding-progress">1 of 2</span></div><div id="onboarding-content"></div></dialog>
 
   <dialog id="setup-dialog" class="sheet-dialog" aria-labelledby="setup-title">
     <div class="sheet-heading"><div><span class="eyebrow">Device setup</span><h2 id="setup-title">Setup guide</h2></div><button class="icon-button" data-close="setup-dialog" aria-label="Close setup guide">${icon('x')}</button></div><p id="setup-intro" class="sheet-intro"></p><div id="setup-content"></div>
@@ -182,7 +182,7 @@ $('#app').innerHTML = `
 
   <dialog id="wifi-dialog" class="sheet-dialog" aria-labelledby="wifi-title">
     <div class="sheet-heading"><div><span class="eyebrow">Phone connection</span><h2 id="wifi-title">Connect over Wi-Fi</h2></div><button class="icon-button" data-close="wifi-dialog" aria-label="Close connection settings">${icon('x')}</button></div>
-    <p class="sheet-intro">Keep your phone and computer on the same Wi-Fi network. Leave the cable connected until Ghost confirms the switch.</p>
+    <p class="sheet-intro">Keep your phone and computer on the same Wi-Fi network. Leave the cable connected until Wraith confirms the switch.</p>
     <div class="location-modes" role="group" aria-label="Connection method"><button data-connection="usb">USB cable</button><button data-connection="wifi">Wi-Fi</button></div>
     <p id="wifi-status" class="settings-note" role="status"></p>
     <div id="wifi-handoff" class="settings-group" hidden><button id="switch-to-wifi" class="primary-button">Switch to Wi-Fi</button><p class="settings-note">Your current location carries over. A running route pauses during the switch and continues once connected.</p><p id="wifi-android-note" class="settings-note" hidden>This enables Android network debugging on port 5555. Use a trusted network; restart the phone to turn it off.</p></div>
@@ -210,16 +210,16 @@ $('#app').innerHTML = `
       <p class="settings-note">Once connected, close this panel and choose Prepare if needed. Keep Location on and select Appium Settings as the mock location app. Android 8–10 can switch from an authorized USB connection.</p>
     </div>
     </details>
-    <p class="settings-note">Allow Ghost and its device tools through your computer’s local-network/firewall prompts. Guest Wi-Fi, client isolation and some VPNs can prevent devices from finding each other. Keep Ghost open; restore real location before disconnecting.</p>
+    <p class="settings-note">Allow Wraith and its device tools through your computer’s local-network/firewall prompts. Guest Wi-Fi, client isolation and some VPNs can prevent devices from finding each other. Keep Wraith open; restore real location before disconnecting.</p>
     <div class="dialog-actions"><button id="wifi-refresh" class="primary-button">Refresh phones</button></div>
   </dialog>
 
   <dialog id="settings-dialog" class="sheet-dialog" aria-labelledby="settings-title">
-    <div class="sheet-heading"><div><span class="eyebrow">Ghost</span><h2 id="settings-title">Settings</h2></div><button class="icon-button" data-close="settings-dialog" aria-label="Close settings">${icon('x')}</button></div>
-    <div class="settings-group"><h3>Device setup</h3><div class="configuration-row"><div><strong id="settings-configuration">No setup selected</strong><small>Ghost uses this to show the right connection steps.</small></div><button id="rerun-onboarding" class="secondary-button compact">Change</button></div></div>
-    <div class="settings-group"><h3>Location sessions</h3><label class="setting-row"><span><strong>Restore on quit</strong><small>Ghost tries to stop location simulation before it closes. Keep the phone connected.</small></span><input id="restore-preference" type="checkbox" class="switch" /></label></div>
+    <div class="sheet-heading"><div><span class="eyebrow">Wraith</span><h2 id="settings-title">Settings</h2></div><button class="icon-button" data-close="settings-dialog" aria-label="Close settings">${icon('x')}</button></div>
+    <div class="settings-group"><h3>Device setup</h3><div class="configuration-row"><div><strong id="settings-configuration">No setup selected</strong><small>Wraith uses this to show the right connection steps.</small></div><button id="rerun-onboarding" class="secondary-button compact">Change</button></div></div>
+    <div class="settings-group"><h3>Location sessions</h3><label class="setting-row"><span><strong>Restore on quit</strong><small>Wraith tries to stop location simulation before it closes. Keep the phone connected.</small></span><input id="restore-preference" type="checkbox" class="switch" /></label></div>
     <div class="settings-group"><h3>Device tools</h3><div id="runtime-status"></div><button id="install-runtime" class="secondary-button">${icon('download')} Prepare device tools</button><p class="settings-note">First-time preparation may need an internet connection.</p></div>
-    <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form><div class="settings-footer">Ghost 0.1.7 · Free and open source</div>
+    <form id="provider-form" class="settings-group"><h3>Place search</h3><label class="field-label" for="provider-url">Photon-compatible endpoint</label><input id="provider-url" class="text-input" type="url" required placeholder="https://photon.komoot.io/api/" /><p class="settings-note">Search runs only when you submit. Map tiles come from OpenStreetMap.</p><div class="button-row"><button type="submit" class="secondary-button compact">Save endpoint</button><button id="reset-provider" type="button" class="text-button">Reset</button></div></form><div class="settings-footer">Wraith 0.2.0 · Based on Ghost · Free and open source (GPL-3.0)</div>
   </dialog>
 
   <dialog id="save-dialog" class="small-dialog" aria-labelledby="save-title"><div class="sheet-heading"><div><span class="eyebrow">Saved place</span><h2 id="save-title">Save this place</h2></div><button class="icon-button" data-close="save-dialog" aria-label="Close save place">${icon('x')}</button></div><form id="save-form"><label class="field-label" for="place-name">Name</label><input id="place-name" class="text-input" maxlength="120" required placeholder="Place name" /><input id="place-id" type="hidden" /><p id="save-coordinates" class="settings-note"></p><button class="primary-button" type="submit"><span>Save place</span>${icon('bookmark')}</button></form></dialog>
@@ -560,7 +560,7 @@ function renderSession() {
   const refreshCount = Number.isFinite(session?.refreshCount) ? Math.max(0, session.refreshCount) : null;
   const refreshText = hasRefresh ? `<small id="session-refresh" class="session-refresh" aria-live="off"><span>${confirmationLabel}: <time datetime="${esc(refreshDate.toISOString())}">${esc(refreshDate.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' }))}</time>${refreshCount === null ? '' : ` · ${commandAck ? 'Updates acknowledged' : 'Refreshes'}: ${refreshCount}`}</span><span>${confirmationScope}</span></small>` : '';
   const recovering = ['waiting', 'unknown', 'error'].includes(session?.status);
-  const recoveryText = recovering ? `<span class="session-recovery">${session.autoReconnect ? 'Ghost will retry this phone automatically. Restore cancels retry.' : 'Reconnect this phone, then retry or restore.'}</span>` : '';
+  const recoveryText = recovering ? `<span class="session-recovery">${session.autoReconnect ? 'Wraith will retry this phone automatically. Restore cancels retry.' : 'Reconnect this phone, then retry or restore.'}</span>` : '';
   const statusIcon = session?.status === 'reconnecting' ? 'refresh-cw' : session ? ['unknown', 'error', 'waiting'].includes(session.status) ? 'help-circle' : 'map-pin' : 'circle';
   const route = state.route, verb = MODES[route?.mode]?.verb || 'Following route';
   const runningLabel = route?.realistic ? (route.waiting ? `${verb} · stopped` : `${verb} · ${speedText(route.speedMph || 0)}`) : `${verb} · ${speedText(route?.topSpeedMph ?? 45)}`;
@@ -585,7 +585,7 @@ function renderSetup() {
   $('#setup-intro').textContent = guide.intro;
   const runtime = state.runtime?.[setupPlatform];
   const runtimeHelp = runtime?.available === false ? `<div class="setup-runtime"><div><strong>${isPreview ? 'Open the desktop app to connect' : 'Device tools need preparation'}</strong><p>${isPreview ? 'The browser preview cannot discover or control phones.' : 'First-time preparation needs internet access.'}</p></div><button id="setup-install-runtime" class="secondary-button compact" ${(pending || state.busy || isPreview) ? 'disabled' : ''}>${pending ? 'Preparing…' : 'Prepare tools'}</button></div>` : '';
-  setContent('#setup-content', `${runtimeHelp}<ol class="setup-steps">${guide.steps.map(([title, body], index) => `<li><span class="step-number">${index + 1}</span><div><h3>${title}</h3><p>${body}</p></div></li>`).join('')}</ol><p class="compatibility-note">${setupPlatform === 'ios' ? 'Ghost currently targets iOS 17.4 and later. Support still depends on the iOS version and bundled device tools.' : 'Ghost targets Android 8 and later. Some apps can detect or reject simulated locations.'}</p>`);
+  setContent('#setup-content', `${runtimeHelp}<ol class="setup-steps">${guide.steps.map(([title, body], index) => `<li><span class="step-number">${index + 1}</span><div><h3>${title}</h3><p>${body}</p></div></li>`).join('')}</ol><p class="compatibility-note">${setupPlatform === 'ios' ? 'Wraith currently targets iOS 17.4 and later. Support still depends on the iOS version and bundled device tools.' : 'Wraith targets Android 8 and later. Some apps can detect or reject simulated locations.'}</p>`);
   if ($('#setup-install-runtime')) $('#setup-install-runtime').onclick = () => runOperation(() => api.installRuntime(), 'Device tools checked.');
   $('#setup-scan').disabled = pending || state.busy;
   const matching = state.devices.filter((device) => device.platform === setupPlatform && device.state !== 'offline');
@@ -595,7 +595,7 @@ function renderSetup() {
 function renderOnboarding() {
   $('#onboarding-progress').textContent = onboardingStep === 'survey' ? '1 of 2' : '2 of 2';
   if (onboardingStep === 'survey') {
-    setContent('#onboarding-content', `<div class="onboarding-copy"><span class="eyebrow">Welcome to Ghost</span><h1 id="onboarding-title">Let’s set up your devices.</h1><p>Choose your computer and phone. Ghost will show the USB setup for that combination. For wireless setup, choose Connection → Wi-Fi on the map.</p></div><div class="survey-group"><h2>This computer</h2><div class="choice-grid"><button class="choice-card" data-survey-host="mac" aria-pressed="${surveyHost === 'mac'}">${icon('laptop')}<span><strong>Mac</strong><small>macOS</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-host="windows" aria-pressed="${surveyHost === 'windows'}">${icon('monitor')}<span><strong>Windows PC</strong><small>Windows 10 or 11</small></span>${icon('check', 'choice-check')}</button></div></div><div class="survey-group"><h2>Your phone</h2><div class="choice-grid"><button class="choice-card" data-survey-phone="ios" aria-pressed="${surveyPhone === 'ios'}">${icon('smartphone')}<span><strong>iPhone</strong><small>iOS 17.4 or later</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-phone="android" aria-pressed="${surveyPhone === 'android'}">${icon('smartphone')}<span><strong>Android</strong><small>Android 8 or later</small></span>${icon('check', 'choice-check')}</button></div></div><div class="onboarding-actions"><span>Your choices stay on this computer.</span><button id="onboarding-next" class="primary-button inline" ${!surveyHost || !surveyPhone ? 'disabled' : ''}><span>Continue</span>${icon('arrow-right')}</button></div>`);
+    setContent('#onboarding-content', `<div class="onboarding-copy"><span class="eyebrow">Welcome to Wraith</span><h1 id="onboarding-title">Let’s set up your devices.</h1><p>Choose your computer and phone. Wraith will show the USB setup for that combination. For wireless setup, choose Connection → Wi-Fi on the map.</p></div><div class="survey-group"><h2>This computer</h2><div class="choice-grid"><button class="choice-card" data-survey-host="mac" aria-pressed="${surveyHost === 'mac'}">${icon('laptop')}<span><strong>Mac</strong><small>macOS</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-host="windows" aria-pressed="${surveyHost === 'windows'}">${icon('monitor')}<span><strong>Windows PC</strong><small>Windows 10 or 11</small></span>${icon('check', 'choice-check')}</button></div></div><div class="survey-group"><h2>Your phone</h2><div class="choice-grid"><button class="choice-card" data-survey-phone="ios" aria-pressed="${surveyPhone === 'ios'}">${icon('smartphone')}<span><strong>iPhone</strong><small>iOS 17.4 or later</small></span>${icon('check', 'choice-check')}</button><button class="choice-card" data-survey-phone="android" aria-pressed="${surveyPhone === 'android'}">${icon('smartphone')}<span><strong>Android</strong><small>Android 8 or later</small></span>${icon('check', 'choice-check')}</button></div></div><div class="onboarding-actions"><span>Your choices stay on this computer.</span><button id="onboarding-next" class="primary-button inline" ${!surveyHost || !surveyPhone ? 'disabled' : ''}><span>Continue</span>${icon('arrow-right')}</button></div>`);
     document.querySelectorAll('[data-survey-host]').forEach((button) => { button.onclick = () => { surveyHost = button.dataset.surveyHost; renderOnboarding(); paintIcons(); }; });
     document.querySelectorAll('[data-survey-phone]').forEach((button) => { button.onclick = () => { surveyPhone = button.dataset.surveyPhone; renderOnboarding(); paintIcons(); }; });
     $('#onboarding-next').onclick = () => { if (surveyHost && surveyPhone) { onboardingStep = 'guide'; onboardingChecks.clear(); renderOnboarding(); paintIcons(); } };
@@ -636,7 +636,7 @@ function renderConnections() {
     button.setAttribute('aria-pressed', String(button.dataset.connection === mode));
     button.disabled = busy || (button.dataset.connection !== mode && Boolean(state.session) && !phone);
   });
-  $('#wifi-status').textContent = busy ? 'Checking the connection… Keep USB connected.' : phone ? 'Ready to switch. Ghost will check this same phone over Wi-Fi first.' : state.session?.status === 'active' && mode === 'wifi' ? 'Connected over Wi-Fi. Restore real location before returning to USB.' : state.session ? 'Retry or restore this phone’s session before switching.' : `Using ${mode === 'wifi' ? 'Wi-Fi' : 'USB'}. ${state.devices.length} phone${state.devices.length === 1 ? '' : 's'} found.`;
+  $('#wifi-status').textContent = busy ? 'Checking the connection… Keep USB connected.' : phone ? 'Ready to switch. Wraith will check this same phone over Wi-Fi first.' : state.session?.status === 'active' && mode === 'wifi' ? 'Connected over Wi-Fi. Restore real location before returning to USB.' : state.session ? 'Retry or restore this phone’s session before switching.' : `Using ${mode === 'wifi' ? 'Wi-Fi' : 'USB'}. ${state.devices.length} phone${state.devices.length === 1 ? '' : 's'} found.`;
   $('#wifi-handoff').hidden = !phone;
   $('#switch-to-wifi').disabled = $('#wifi-prompt-switch').disabled = Boolean(busy);
   $('#wifi-prompt-android').hidden = $('#wifi-android-note').hidden = phone?.platform !== 'android';
@@ -882,4 +882,4 @@ api.getState().then(async next => {
     const planned = await api.getRoute();
     if (planned) { setRoutePlan(planned); routeStops = planned.waypoints; if (MODES[planned.mode] && planned.provider !== 'gpx') routeMode = planned.mode; drawRoute(); render(); }
   }
-}).catch((error) => notify(`Ghost could not initialize: ${error.message}`, true));
+}).catch((error) => notify(`Wraith could not initialize: ${error.message}`, true));

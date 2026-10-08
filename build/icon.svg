@@ -1,6 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <rect x="64" y="64" width="896" height="896" rx="200" fill="#1c221c"/>
-  <path d="M290 723V447a222 222 0 0 1 444 0v276l-74-49-74 49-74-49-74 49-74-49z" fill="none" stroke="#d5ed91" stroke-width="38" stroke-linejoin="round"/>
-  <circle cx="437" cy="443" r="26" fill="#d5ed91"/>
-  <circle cx="587" cy="443" r="26" fill="#d5ed91"/>
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="46%" r="50%">
+      <stop offset="0" stop-color="#2b2350"/>
+      <stop offset="1" stop-color="#15122a"/>
+    </radialGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#glow)"/>
+  <path d="M300 768V500C300 368 392 258 512 184c120 74 212 184 212 316v268l-60-50-50 74-52-68-50 80-50-80-52 68-50-74z" fill="none" stroke="#c9b8ff" stroke-width="38" stroke-linejoin="round"/>
+  <path d="M512 318c84 30 128 98 124 184-4 70-56 112-124 112s-120-42-124-112c-4-86 40-154 124-184z" fill="#0b0918"/>
+  <path d="M432 486c18-16 46-16 64 0-18 16-46 16-64 0zm96 0c18-16 46-16 64 0-18 16-46 16-64 0z" fill="#e3d9ff" stroke="#e3d9ff" stroke-width="10" stroke-linejoin="round"/>
 </svg>

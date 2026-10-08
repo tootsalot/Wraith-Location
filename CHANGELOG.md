@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (Wraith)
 
+- Rename the fork to Wraith, with a new icon and app identity. On first launch a packaged Wraith copies saved places, setup choices and saved routes from an existing Ghost installation.
+- Make traffic-light stops less frequent and shorter: about one red in four, usually 5–15 seconds, fewer reds just after stopping, and one light per junction.
 - Unlock route planning, saved routes and Fixed location after a route arrives. The phone keeps holding the destination, and **New route from here** starts the next route at the current point.
 - Add Drive, Bike and Walk modes with a per-mode top-speed slider that can change while a route runs.
 - Add realistic motion, on by default: posted speed limits (about 5 mph over for drivers), smooth acceleration and braking, slowing for corners, traffic-light stops, pace variation and correlated GPS drift. Turning it off gives exact constant-speed playback.

@@ -30,7 +30,7 @@ export function createPreviewBridge() {
   };
   const listeners = new Set();
   const publish = () => { for (const fn of listeners) fn(structuredClone(state)); return structuredClone(state); };
-  const desktopOnly = async () => { throw new Error('Open Ghost on your desktop to connect and control a phone. This browser preview cannot change a device.'); };
+  const desktopOnly = async () => { throw new Error('Open Wraith on your desktop to connect and control a phone. This browser preview cannot change a device.'); };
   return {
     getState: async () => structuredClone(state),
     scanDevices: async () => structuredClone(state),
