@@ -8,8 +8,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const venv = path.join(root, 'sidecar', '.venv');
 const python = path.join(venv, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 const target = `${process.platform}-${process.arch}`;
-if (!['darwin-arm64', 'darwin-x64', 'win32-x64'].includes(target)) {
-  throw new Error(`Unsupported build host ${target}; use native Windows x64 or macOS arm64/x64.`);
+if (!['darwin-arm64', 'darwin-x64', 'win32-x64', 'linux-x64'].includes(target)) {
+  throw new Error(`Unsupported build host ${target}; use native Windows x64, Linux x64 or macOS arm64/x64.`);
 }
 function run(command, args, extra = {}) {
   const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', ...extra });

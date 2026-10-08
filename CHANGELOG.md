@@ -8,6 +8,10 @@
 - Restart drift after switching a held place to Wi-Fi.
 - Resolve six Dependabot alerts in build tools (shell-quote, source-map-js, brace-expansion, http-cache-semantics).
 - Add `.env.example` for local development keys.
+- Add Linux x64 builds as an AppImage and a .deb, with Linux setup checklists for iPhone and Android. The .deb recommends usbmuxd and Android's USB rules. Linux builds are untested on real phones.
+- Detect the computer automatically, so first-run setup only asks which phone you use.
+- Explain how to fix a missing usbmuxd (iPhone) or missing USB rules (Android) on Linux.
+- Build Windows, Mac and Linux installers on GitHub, and create a draft release with checksums when a version tag is pushed.
 
 ## 0.2.1
 

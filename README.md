@@ -165,9 +165,10 @@ npm run pack
 ```
 
 `npm run pack` creates a runnable app in `release/` (`release/win-unpacked/Wraith.exe`
-on Windows). `npm run dist` builds the installer instead. Build on the operating
-system you're targeting: Windows x64, macOS Apple Silicon and macOS Intel are
-supported; Windows on ARM is not yet.
+on Windows). `npm run dist` builds the installer instead (an AppImage and a .deb on
+Linux). Build on the operating system you're targeting: Windows x64, macOS Apple
+Silicon, macOS Intel and Linux x64 are supported; Windows on ARM and ARM Linux are
+not yet.
 
 If Python isn't installed, [uv](https://docs.astral.sh/uv/) can provide one without a
 system-wide install:
@@ -187,7 +188,7 @@ the interface in a browser, without phone control.
 The packaging check refuses to build an app with missing or mismatched phone
 runtimes. Installers are unsigned; a trusted macOS launch and a recognised Windows
 publisher need signing credentials. The GitHub Actions workflow in
-`.github/workflows/build.yml` builds unsigned installers for all three targets as
+`.github/workflows/build.yml` builds unsigned installers for all four targets as
 workflow artifacts.
 
 To release, set the version in `package.json`, rename CHANGELOG.md's "Unreleased"

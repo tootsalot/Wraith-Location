@@ -50,8 +50,14 @@ try {
   await pollState(page, s => !s.busy && s.preferences.connection === 'usb');
   console.log('Wi-Fi discovery IPC and return to USB passed without phone mutation.');
 
-  async function chooseSetup(host, phone, expectedText, finish = true) {
-    await page.locator(`[data-survey-host="${host}"]`).click();
+  // The computer is detected, not chosen; only its two checklists are reachable.
+  const host = { darwin: 'mac', win32: 'windows', linux: 'linux' }[process.platform];
+  const guides = {
+    mac: { ios: /Developer Mode/, android: /No Mac USB driver/ },
+    windows: { ios: /Apple Devices/, android: /ADB USB driver/ },
+    linux: { ios: /sudo apt install usbmuxd/, android: /android-sdk-platform-tools-common/ },
+  }[host];
+  async function chooseSetup(phone, expectedText, finish = true) {
     await page.locator(`[data-survey-phone="${phone}"]`).click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     assert.match(await page.locator('#onboarding-content').textContent(), expectedText);
@@ -63,28 +69,23 @@ try {
   }
 
   await page.locator('#onboarding-dialog[open]').waitFor();
-  await page.locator('[data-survey-host="mac"]').click();
+  assert.equal(await page.locator('[data-survey-host]').count(), 0);
+  assert.match(await page.locator('#onboarding-content').textContent(), { mac: /this Mac\./, windows: /this Windows PC\./, linux: /this Linux computer\./ }[host]);
   await page.locator('[data-survey-phone="ios"]').click();
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, 'wraith-onboarding.png') });
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  assert.match(await page.locator('#onboarding-content').textContent(), /Developer Mode/);
+  assert.match(await page.locator('#onboarding-content').textContent(), guides.ios);
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, 'wraith-onboarding-guide.png') });
   await page.getByRole('button', { name: 'Continue to map', exact: true }).click();
   await page.locator('#onboarding-dialog').waitFor({ state: 'hidden' });
-  await pollState(page, s => s.preferences.onboardingComplete === true && s.preferences.hostPlatform === 'mac' && s.preferences.phonePlatform === 'ios');
+  await pollState(page, s => s.preferences.onboardingComplete === true && s.preferences.hostPlatform === host && s.preferences.phonePlatform === 'ios');
 
-  const setupCases = [
-    ['windows', 'ios', /Apple Devices/],
-    ['mac', 'android', /No Mac USB driver/],
-    ['windows', 'android', /ADB USB driver/],
-    ['mac', 'ios', /Developer Mode/],
-  ];
-  for (const [host, phone, expected] of setupCases) {
+  for (const phone of ['android', 'ios']) {
     await page.locator('#help-button').click();
     await page.locator('#change-configuration').click();
-    await chooseSetup(host, phone, expected);
+    await chooseSetup(phone, guides[phone]);
   }
   await page.waitForFunction(() => document.querySelector('.leaflet-tile-loaded'), null, { timeout: 15000 }).catch(() => console.log('Map tiles unavailable; continuing with coordinates.'));
   await page.screenshot({ path: path.join(output, 'wraith-desktop.png') });

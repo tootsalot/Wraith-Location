@@ -24,6 +24,23 @@ test('native resource architecture inspection distinguishes Mac CPUs, universal 
   assert.equal(supportsArchitecture(Buffer.from('empty'), 'win32', 'x64'), false);
 });
 
+function elf(machine, { type = 3, bits = 2 } = {}) {
+  const bytes = Buffer.alloc(64);
+  bytes.writeUInt32BE(0x7f454c46); bytes[4] = bits; bytes[5] = 1;
+  bytes.writeUInt16LE(type, 16); bytes.writeUInt16LE(machine, 18);
+  return bytes;
+}
+test('Linux resource inspection accepts only 64-bit ELF executables for the target CPU', () => {
+  assert.equal(supportsArchitecture(elf(0x3e), 'linux', 'x64'), true);
+  assert.equal(supportsArchitecture(elf(0x3e, { type: 2 }), 'linux', 'x64'), true);
+  assert.equal(supportsArchitecture(elf(0x3e), 'linux', 'arm64'), false);
+  assert.equal(supportsArchitecture(elf(0xb7), 'linux', 'arm64'), true);
+  assert.equal(supportsArchitecture(elf(0x3e, { bits: 1 }), 'linux', 'x64'), false);
+  assert.equal(supportsArchitecture(elf(0x3e, { type: 1 }), 'linux', 'x64'), false);
+  assert.equal(supportsArchitecture(macho(0x01000007), 'linux', 'x64'), false);
+  assert.equal(supportsArchitecture(elf(0x3e), 'darwin', 'x64'), false);
+});
+
 test('official Windows x86 ADB is allowed on x64 without weakening the iOS sidecar check', () => {
   const fixture = Buffer.alloc(128);
   fixture.write('MZ'); fixture.writeUInt32LE(80, 60);

@@ -34,19 +34,17 @@ function syncTheme(preference) {
   const source = ['dark', 'light'].includes(preference) ? preference : 'system';
   if (nativeTheme.themeSource !== source) nativeTheme.themeSource = source;
 }
-// Windows draws its caption buttons over the page only with titleBarStyle 'hidden';
+// Windows and Linux draw caption buttons over the page only with titleBarStyle 'hidden';
 // 'hiddenInset' is macOS-only and left Windows with a native title bar and no overlay.
 const windowChrome = () => process.platform === 'darwin'
   ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 18 } }
-  : process.platform === 'win32'
-    ? { titleBarStyle: 'hidden', titleBarOverlay: { color: chrome().color, symbolColor: chrome().symbolColor, height: TITLEBAR_HEIGHT } }
-    : {};
+  : { titleBarStyle: 'hidden', titleBarOverlay: { color: chrome().color, symbolColor: chrome().symbolColor, height: TITLEBAR_HEIGHT } };
 nativeTheme.on('updated', () => {
   if (!window || window.isDestroyed()) return;
   const colors = chrome();
   window.setBackgroundColor(colors.background);
   // A theme change must never crash the main process, even if the overlay is unavailable.
-  if (process.platform === 'win32') {
+  if (process.platform !== 'darwin') {
     try { window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_HEIGHT }); } catch {}
   }
 });

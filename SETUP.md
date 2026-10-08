@@ -12,7 +12,7 @@ On Windows, download `Wraith-0.2.1-win-x64.exe` from the [latest release](https:
 | Mac with an Intel processor | `Wraith-0.2.1-mac-x64.dmg` |
 | Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.2.1-win-x64.exe` |
 
-On Mac, **Apple menu → About This Mac** identifies the chip. On Windows, look at **Settings → System → About → System type**. Windows ARM and Linux are not release targets. Native builds are checked on macOS 15 and Windows Server 2025; other OS versions have not been rehearsed.
+On Mac, **Apple menu → About This Mac** identifies the chip. On Windows, look at **Settings → System → About → System type**. Windows ARM and ARM Linux are not release targets. Native builds are checked on macOS 15, Windows Server 2025 and Ubuntu 24.04; other OS versions have not been rehearsed.
 
 **Mac:** open the DMG, drag **Wraith** into **Applications**, then open it from Applications. The app is unsigned and not notarized. If macOS blocks the launch, check **System Settings → Privacy & Security → Open Anyway**. If it instead reports the app as damaged, first compare the download with `SHA256SUMS.txt` on the release page and download it again if the checksum differs. For a matching download that you choose to trust, the scoped command below removes its quarantine flag; it does not sign the app or verify its safety:
 
@@ -21,6 +21,8 @@ xattr -dr com.apple.quarantine /Applications/Wraith.app
 ```
 
 **Windows:** run the EXE and follow the installer. The release is unsigned. If SmartScreen shows **Windows protected your PC**, inspect the file and publisher warning; use **More info → Run anyway** only if you choose to trust this download. A managed computer may block unsigned apps.
+
+**Linux (64-bit Intel/AMD):** on Ubuntu, Debian or a distribution based on them, install the .deb with `sudo apt install ./Wraith-<version>-linux-amd64.deb`; apt also installs the recommended iPhone and Android USB packages. On other distributions, use the AppImage: make it executable (`chmod +x Wraith-*.AppImage`) and run it. AppImages need FUSE 2 (`libfuse2`, or `libfuse2t64` on Ubuntu 24.04). If the AppImage won't start on Ubuntu 24.04 or later, use the .deb, which sets up the permissions Ubuntu requires for Wraith's built-in browser sandbox.
 
 The installer includes ADB, the iPhone runtime, and the Android location helper. You do not need Node.js, Python, Xcode, Android Studio, or Appium Server to use it.
 
@@ -66,6 +68,24 @@ The Android adapter targets **Android 8 and later**. See [Android's developer se
 4. Select the phone in Wraith and click **Prepare**. Approve the helper's permissions; if prompted, select **Appium Settings** under **Select mock location app**.
 5. Wait for **Ready** before setting a location.
 
+### Linux → iPhone
+
+1. Install **usbmuxd**, the service that lets the computer talk to an iPhone over USB. On Ubuntu or Debian run `sudo apt install usbmuxd` (the Wraith .deb recommends it, so apt usually installs it for you). Other distributions use the same package name.
+2. Connect and unlock the iPhone, then tap **Trust** on the phone.
+3. Enable **Settings → Privacy & Security → Developer Mode**, restart, then confirm it on the phone.
+4. In Wraith, select the iPhone and click **Prepare** if shown. Wait for **Ready**. Wraith's iPhone connection runs without administrator rights.
+
+If Wraith reports **Apple USB services are unavailable**, usbmuxd isn't installed or running. Install it, then unplug and reconnect the iPhone.
+
+### Linux → Android
+
+1. Let your user account open Android phones over USB. On Ubuntu or Debian run `sudo apt install android-sdk-platform-tools-common`, which adds Android's udev rules (the Wraith .deb recommends it). On other distributions, install your distribution's Android udev rules package. Then unplug and reconnect the phone.
+2. Enable **Developer options** and **USB debugging** as above, and accept the phone's USB debugging prompt.
+3. Select the phone in Wraith and click **Prepare**. If prompted, select **Appium Settings** under **Select mock location app**.
+4. Wait for **Ready** before setting a location.
+
+If Wraith says this computer isn't allowed to open the phone's USB connection, the udev rules are missing. Install them as in step 1 and reconnect.
+
 ## Set one location
 
 1. Choose **Place**. Search for a place and select a result, click the map, or enter latitude/longitude and select the coordinates.
@@ -103,7 +123,7 @@ With realistic motion off, the speed is constant, regardless of road limits or t
 
 Wraith has no account or telemetry. Device identifiers, saved places, and a recovery record stay on the computer. Map viewing requests OpenStreetMap tiles, submitted searches go to Photon, and planning sends stop coordinates to OSRM. These public services have usage limits and no uptime guarantee. Route playback itself does not contact OSRM.
 
-Mac → iPhone has been used successfully on a physical phone. Windows → iPhone, Windows → Android, and Mac → Android have software/adapter coverage; they have **not all been verified with physical USB phones**. Native installer builds are separate from end-to-end phone compatibility. See [validation](docs/validation.md) and the [hardware test matrix](docs/hardware-test-matrix.md).
+Mac → iPhone has been used successfully on a physical phone. Windows → iPhone, Windows → Android, and Mac → Android have software/adapter coverage; they have **not all been verified with physical USB phones**. Linux builds are new and **untested on real phones**. Native installer builds are separate from end-to-end phone compatibility. See [validation](docs/validation.md) and the [hardware test matrix](docs/hardware-test-matrix.md).
 
 For help, [open an issue](https://github.com/tootsalot/Wraith-Location/issues) with the Wraith version, computer OS/processor, phone OS, and exact error. Remove phone identifiers and private locations from logs and screenshots.
 

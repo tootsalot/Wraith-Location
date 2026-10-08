@@ -33,6 +33,9 @@ jobs:
           - runner: macos-15-intel
             platform: darwin
             arch: x64
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
     env:
       WRAITH_TARGET_PLATFORM: ${{ matrix.platform }}
       WRAITH_TARGET_ARCH: ${{ matrix.arch }}
@@ -78,6 +81,8 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.exe
+            release/*.AppImage
+            release/*.deb
       - name: Upload build provenance and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

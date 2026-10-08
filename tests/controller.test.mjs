@@ -30,7 +30,8 @@ test('stores a valid onboarding configuration and rejects unknown platforms', as
     phonePlatform: 'ios',
   });
   assert.deepEqual(store.data.preferences, result.preferences);
-  await assert.rejects(c.updatePreferences({ hostPlatform: 'linux' }), /computer platform/);
+  assert.equal((await c.updatePreferences({ hostPlatform: 'linux' })).preferences.hostPlatform, 'linux');
+  await assert.rejects(c.updatePreferences({ hostPlatform: 'freebsd' }), /computer platform/);
   await assert.rejects(c.updatePreferences({ phonePlatform: 'blackberry' }), /phone platform/);
   await assert.rejects(c.updatePreferences({ onboardingComplete: 'yes' }), /onboarding preference/);
 });

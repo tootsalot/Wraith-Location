@@ -420,3 +420,14 @@ test('USB-assisted Wi-Fi refuses cellular-only phones and mismatched wireless id
     if (!hasWifi) assert.ok(!calls.some(c => c.args.includes('tcpip')));
   }
 });
+
+test('Linux USB phones without udev access explain how to grant it', async () => {
+  const line = '0123456789ABCDEF       no permissions (missing udev rules? user is in the plugdev group); see [http://developer.android.com/tools/device.html] usb:3-2 transport_id:1';
+  const {adapter, calls} = rig({devices: line});
+  const [device] = await adapter.list();
+  assert.equal(device.state, 'unauthorized');
+  assert.match(device.detail, /android-sdk-platform-tools-common/);
+  assert.equal(calls.length, 1);
+  await assert.rejects(adapter.set({id: 'android:0123456789ABCDEF', serial: '0123456789ABCDEF', platform: 'android'}, {latitude: 1, longitude: 2}), /android-sdk-platform-tools-common/);
+  assert.ok(!calls.some(call => call.args.includes('shell')));
+});
