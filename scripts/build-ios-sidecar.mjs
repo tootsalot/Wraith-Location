@@ -50,5 +50,5 @@ const lock = spawnSync(python, ['-m', 'pip', 'freeze'], { encoding: 'utf8' });
 writeFileSync(path.join(dist, 'build-dependencies.txt'), lock.stdout);
 const bridgeSha256 = createHash('sha256').update(readFileSync(path.join(root, 'sidecar', 'ios_bridge.py'))).digest('hex');
 writeFileSync(path.join(dist, 'build-info.json'), JSON.stringify({ target, pymobiledevice3: '11.12.4',
-  builtAt: new Date().toISOString(), protocolVersion: 1, bridgeSha256 }, null, 2));
+  builtAt: new Date().toISOString(), protocolVersion: 2, bridgeSha256 }, null, 2));
 console.log(`Built and verified iPhone sidecar: ${executable}`);

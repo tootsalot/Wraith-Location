@@ -121,6 +121,7 @@ test('wander mode walks footpaths between spots inside the circle and lingers at
   const route = f.c.state.route;
   assert.equal(route.kind, 'wander'); assert.equal(route.status, 'running'); assert.equal(route.phase, 'lingering');
   assert.ok(f.c.routeLocked(), 'Wandering owns the phone like a route.');
+  assert.equal(f.c.state.recentPlaces.length, 0, 'A wander centre is not a recent place.');
   await f.c.wander.planning;
   assert.equal(calls.length, 1);
   const points = [];

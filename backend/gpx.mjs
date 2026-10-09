@@ -3,6 +3,8 @@ import { spansFromSegments } from './routing.mjs';
 
 export const MAX_GPX_BYTES = 25_000_000;
 const MAX_POINTS = 50000;
+// Enough to reach 15 seconds on each side at 10 fixes a second.
+const MAX_SPEED_WINDOW_STEPS = 150;
 
 const decode = value => value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&(lt|gt|quot|apos|amp|#\d+|#x[0-9a-f]+);/gi, (_, entity) => {
   const named = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' }[entity.toLowerCase()];
@@ -49,9 +51,11 @@ export function parseGpx(xml) {
   const cumulative = [0];
   for (let i = 1; i < coordinates.length; i++) cumulative.push(cumulative[i - 1] + distanceBetween(coordinates[i - 1], coordinates[i]));
   // Recorded speed per kept segment, smoothed over at least ~15 seconds of recording.
+  // The widening is capped: when timestamps stop advancing (repeated or out of order),
+  // an uncapped window would span the whole track for every segment.
   const segments = timed ? kept.slice(1).map((end, j) => {
     let from = kept[j], to = end;
-    while (unique[to].time - unique[from].time < 15000 && (from > 0 || to < unique.length - 1)) { if (from > 0) from--; if (to < unique.length - 1) to++; }
+    for (let step = 0; step < MAX_SPEED_WINDOW_STEPS && unique[to].time - unique[from].time < 15000 && (from > 0 || to < unique.length - 1); step++) { if (from > 0) from--; if (to < unique.length - 1) to++; }
     const seconds = (unique[to].time - unique[from].time) / 1000, meters = cumulative[to] - cumulative[from];
     const mps = seconds > 0 ? meters / seconds : 0;
     return mps >= 0.5 && mps < 110 ? [Math.round(mps * 3.6), 2] : [null, 2];

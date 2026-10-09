@@ -14,7 +14,7 @@ import math
 import re
 import sys
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 PINNED_VERSION = "11.12.4"
 REFRESH_INTERVAL = 1.0
 LOCATION_ACK_TIMEOUT = 5.0
@@ -261,6 +261,33 @@ class Bridge:
                 "refreshedAt": target["refreshedAt"], "refreshCount": target["refreshCount"],
                 "refreshIntervalMs": round(self.refresh_interval * 1000)}
 
+    def new_target(self, params):
+        lat, lon = params.get("latitude"), params.get("longitude")
+        if (isinstance(lat, bool) or isinstance(lon, bool) or
+            not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)) or
+            not math.isfinite(lat) or not math.isfinite(lon) or abs(lat) > 90 or abs(lon) > 180):
+            raise ValueError("Invalid latitude or longitude.")
+        session_id = params.get("sessionId")
+        if session_id is not None and (not isinstance(session_id, str) or len(session_id) > 200):
+            raise ValueError("Invalid location session identifier.")
+        self.target_sequence += 1
+        return {"latitude": lat, "longitude": lon, "sessionId": session_id,
+                "generation": params.get("generation", self.target_sequence), "refreshCount": 0}
+
+    async def retarget(self, session, target):
+        # Replace the whole intent while holding the same lock as refresh.
+        # A prior coordinate can never be sent after this update begins.
+        session["target"] = target
+        try:
+            acknowledged = await self.apply_target(session, target)
+            session["active"] = True
+            if not session.get("refresher") or session["refresher"].done():
+                session["refresher"] = asyncio.create_task(self.refresh_session(session))
+            return {"applied": True, **acknowledged}
+        except BaseException:
+            await self.fail_session(session, "Location update failed. Location state is unknown; reconnect to restore it.")
+            raise
+
     async def refresh_session(self, session):
         while True:
             await asyncio.sleep(self.refresh_interval)
@@ -325,30 +352,22 @@ class Bridge:
             if method == "prepare":
                 return await self.prepare(params.get("udid"))
             if method == "set":
-                lat, lon = params.get("latitude"), params.get("longitude")
-                if (isinstance(lat, bool) or isinstance(lon, bool) or
-                    not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)) or
-                    not math.isfinite(lat) or not math.isfinite(lon) or abs(lat) > 90 or abs(lon) > 180):
-                    raise ValueError("Invalid latitude or longitude.")
-                session_id = params.get("sessionId")
-                if session_id is not None and (not isinstance(session_id, str) or len(session_id) > 200):
-                    raise ValueError("Invalid location session identifier.")
+                target = self.new_target(params)
                 session = await self.connect(params.get("udid"))
-                self.target_sequence += 1
-                target = {"latitude": lat, "longitude": lon, "sessionId": session_id,
-                          "generation": params.get("generation", self.target_sequence), "refreshCount": 0}
-                # Replace the whole intent while holding the same lock as refresh.
-                # A prior coordinate can never be sent after this update begins.
-                session["target"] = target
-                try:
-                    acknowledged = await self.apply_target(session, target)
-                    session["active"] = True
-                    if not session.get("refresher") or session["refresher"].done():
-                        session["refresher"] = asyncio.create_task(self.refresh_session(session))
-                    return {"applied": True, **acknowledged}
-                except BaseException:
-                    await self.fail_session(session, "Location update failed. Location state is unknown; reconnect to restore it.")
-                    raise
+                return await self.retarget(session, target)
+            if method == "update":
+                # Route, wander and drift steps move an already-acknowledged stream.
+                # Each device reply proves the stream works, so skip connect()'s
+                # lockdown probe: over Wi-Fi it is a two-second Bonjour search.
+                target = self.new_target(params)
+                session = self.session
+                if (not session or session["udid"] != params.get("udid") or not session.get("active") or
+                        session.get("connection", "usb") != CONNECTION.get()):
+                    raise ConnectionError("The iPhone location session is no longer active. Reconnect this phone.")
+                if not self.session_usable(session):
+                    await self.fail_session(session, "iPhone developer connection ended. Location state is unknown.")
+                    raise ConnectionError("iPhone developer connection ended. Location state is unknown.")
+                return await self.retarget(session, target)
             if method == "clear":
                 session = await self.connect(params.get("udid"))
                 try:

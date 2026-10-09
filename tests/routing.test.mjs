@@ -204,6 +204,7 @@ test('arrival unlocks planning, another route and fixed locations without restor
   assert.equal(f.c.state.route, null);
   assert.equal(f.c.state.session.label, 'Fixed after arrival');
   assert.equal(f.calls.filter(c => c[0] === 'clear').length, 0, 'The phone never jumped back to real GPS.');
+  assert.deepEqual(f.c.state.recentPlaces.map(p => p.label), ['Fixed after arrival'], 'Route starts are not recent places.');
 });
 
 test('a running or paused route still locks route changes', async t => {

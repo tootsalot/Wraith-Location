@@ -242,6 +242,18 @@ test('recovery uses a bounded timeout while first-time preparation retains its l
   assert.deepEqual(calls.map((value) => value.params.sessionId), ['initial', 'retry']);
 });
 
+test('update retargets only the live session, without the reconnect probe that set uses', async () => {
+  const h = harness(); const calls = [];
+  h.adapter.request = async (method, params, timeout) => { calls.push({ method, params, timeout }); return { applied: true }; };
+  await assert.rejects(h.adapter.update(device, { latitude: 1, longitude: 2, sessionId: 'live' }), /no longer active/);
+  await h.adapter.set(device, { latitude: 1, longitude: 2, sessionId: 'live' });
+  await h.adapter.update(device, { latitude: 3, longitude: 4, sessionId: 'live' });
+  await assert.rejects(h.adapter.update(device, { latitude: 5, longitude: 6, sessionId: 'old' }), /no longer active/);
+  assert.deepEqual(calls.map(({ method, params, timeout }) => [method, params.latitude, timeout]), [['set', 1, 60000], ['update', 3, 20000]]);
+  assert.equal(calls[1].params.generation, calls[0].params.generation + 1);
+  assert.equal(h.adapter.activeTarget.latitude, 3);
+});
+
 test('failed upstream reset terminates and detaches sidecar so reconnect uses a fresh process', async () => {
   const h = harness();
   const status = h.adapter.status();

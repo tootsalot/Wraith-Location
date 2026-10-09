@@ -508,7 +508,12 @@ function placeItem(place) {
   return `<div class="saved-place"><button class="saved-place-main" data-place="${esc(place.id)}">${icon('map-pin')}<span><strong>${esc(place.label)}</strong><small>${Number(place.latitude).toFixed(4)}, ${Number(place.longitude).toFixed(4)}</small></span></button><div class="saved-place-actions"><button class="icon-button" data-edit="${esc(place.id)}" aria-label="Rename ${esc(place.label)}" title="Rename">${icon('pencil')}</button><button class="icon-button" data-delete="${esc(place.id)}" aria-label="Remove ${esc(place.label)}" title="Remove">${icon('trash-2')}</button></div></div>`;
 }
 
-const routeTime = seconds => seconds < 60 ? `${Math.ceil(seconds)} sec` : seconds < 3600 ? `${Math.ceil(seconds / 60)} min` : `${Math.floor(seconds / 3600)} hr ${Math.ceil(seconds % 3600 / 60)} min`;
+// Round up to whole minutes first, so 7,190 seconds reads "2 hr 0 min", not "1 hr 60 min".
+const routeTime = seconds => {
+  if (Math.ceil(seconds) < 60) return `${Math.ceil(seconds)} sec`;
+  const minutes = Math.ceil(seconds / 60);
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+};
 const miles = meters => `${(meters / 1609.344).toFixed(meters < 16093 ? 2 : 1)} mi`;
 const speedText = mph => `${mph < 10 ? mph.toFixed(1).replace(/\.0$/, '') : Math.round(mph)} mph`;
 // A running or paused route owns the phone; an arrived route only holds the destination.

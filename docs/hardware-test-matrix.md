@@ -6,6 +6,7 @@ test is claimed until an operator records the actual devices and results below.
 | Host | Phone | Transport | Acceptance status |
 | --- | --- | --- | --- |
 | Windows x64 | iPhone, iOS 17.4+ | USB | Wraith 0.2.0: Set location, realistic route playback and arrival unlock user-observed with iOS 27.0.1 (October 2026). Restore not recorded. Unreleased build after 0.2.1: natural drift, wander mode and notifications user-observed working (October 2026). |
+| Windows x64 | iPhone, iOS 17.4+ | Wi-Fi | Development build of 0.3.2: Wi-Fi user-observed working (October 2026). Before 0.3.2, every route, wander and drift step ran a two-second Wi-Fi search, so routes paused themselves. |
 | Windows x64 | Android 8.0+ | USB | Not device-tested |
 | macOS Apple Silicon / Intel | iPhone, iOS 17.4+ | USB | Version 0.1.5: Apple Silicon Set and sustained command acknowledgements user-observed with iOS 26.6; Restore not recorded. Not yet re-tested with 0.2. Intel untested. |
 | macOS Apple Silicon / Intel | Android 8.0+ | USB | Android 14 emulator helper flow passed; physical USB remains untested. |

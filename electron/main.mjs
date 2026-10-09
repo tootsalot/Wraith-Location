@@ -157,7 +157,7 @@ async function boot() {
     },
     exportGpx: async () => {
       const { name, gpx } = controller.exportGpx();
-      const fileName = `${name.replace(/[<>:"/\|?*\u0000-\u001f]/g, '').trim().slice(0, 80) || 'Wraith route'}.gpx`;
+      const fileName = `${name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().slice(0, 80) || 'Wraith route'}.gpx`;
       const result = await dialog.showSaveDialog(window, { title: 'Export GPX route', defaultPath: fileName, filters: [{ name: 'GPX', extensions: ['gpx'] }] });
       if (result.canceled || !result.filePath) return { canceled: true };
       await writeFile(result.filePath, gpx, 'utf8');

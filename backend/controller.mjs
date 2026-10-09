@@ -336,7 +336,8 @@ export class Controller extends EventEmitter {
         if (this.closing) throw new Error('Wraith is closing; this session must be checked when it reopens.');
         if (['unknown', 'waiting'].includes(current.status)) throw new Error(current.message);
         this.confirmActive(current, result);
-        this.state.recentPlaces = [{ id: randomUUID(), ...point, usedAt: new Date().toISOString() }, ...this.state.recentPlaces.filter(p => p.latitude !== point.latitude || p.longitude !== point.longitude)].slice(0, 12);
+        // Only held places are recent places; a route or wander start is not a place the user chose.
+        if (!route) this.state.recentPlaces = [{ id: randomUUID(), ...point, usedAt: new Date().toISOString() }, ...this.state.recentPlaces.filter(p => p.latitude !== point.latitude || p.longitude !== point.longitude)].slice(0, 12);
         await this.persist();
         if (!route) this.startDrift(current);
         return this.snapshot();

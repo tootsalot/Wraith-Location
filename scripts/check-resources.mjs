@@ -91,7 +91,7 @@ export function validateResources({ root = projectRoot, platform = process.platf
   const iosInfo = json(`${iosDir}/build-info.json`);
   const pinnedIos = file('sidecar/requirements.txt').toString('utf8').match(/^pymobiledevice3==([^\s]+)$/m)?.[1];
   const bridgeSha256 = sha256(file('sidecar/ios_bridge.py'));
-  if (!pinnedIos || iosInfo.target !== target || iosInfo.pymobiledevice3 !== pinnedIos || iosInfo.protocolVersion !== 1 ||
+  if (!pinnedIos || iosInfo.target !== target || iosInfo.pymobiledevice3 !== pinnedIos || iosInfo.protocolVersion !== 2 ||
       iosInfo.bridgeSha256 !== bridgeSha256) {
     throw new Error('iPhone sidecar build metadata is stale or does not match the target.');
   }
@@ -103,7 +103,7 @@ export function validateResources({ root = projectRoot, platform = process.platf
       input: '{"id":1,"method":"status","params":{}}\n{"id":2,"method":"shutdown","params":{"restore":false}}\n' });
     if (iosCheck.status !== 0) throw new Error(`iPhone sidecar cannot run: ${iosCheck.error || iosCheck.stderr}`);
     const messages = iosCheck.stdout.trim().split('\n').map((line) => JSON.parse(line));
-    if (!messages.some((message) => message.id === 1 && message.ok && message.result?.available && message.result?.protocolVersion === 1)) {
+    if (!messages.some((message) => message.id === 1 && message.ok && message.result?.available && message.result?.protocolVersion === 2)) {
       throw new Error('iPhone sidecar did not confirm runtime availability.');
     }
   }

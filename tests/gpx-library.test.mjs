@@ -25,6 +25,16 @@ test('GPX tracks import as exact paths with recorded speeds', () => {
   assert.equal(route.mode, 'bike');
 });
 
+test('a long GPX track whose times never advance imports quickly, with no recorded speeds', () => {
+  // A zigzag keeps every point; repeated timestamps once made import take minutes.
+  const points = Array.from({ length: 60000 }, (_, i) => [41.8 + i * 0.0001, -87.6 + (i % 2) * 0.0002, 0]);
+  const began = performance.now();
+  const { route } = parseGpx(trackXml(points));
+  assert.ok(performance.now() - began < 5000, 'import must not widen each speed window across the whole track');
+  assert.ok(route.coordinates.length >= 2 && route.coordinates.length <= 50000);
+  assert.deepEqual(route.profile.spans, []);
+});
+
 test('GPX without times, short GPX routes, and invalid files are handled', () => {
   const untimed = parseGpx(trackXml([[1, 1], [1, 1], [1.001, 1.001], [1.002, 1]]));
   assert.deepEqual(untimed.route.profile.spans, []);

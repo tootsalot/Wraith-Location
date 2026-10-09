@@ -329,6 +329,43 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
             session["location"].clear.assert_awaited_once()
         self.assertEqual(bridge_module.CONNECTION.get(), "usb")
 
+    async def test_update_retargets_the_live_stream_without_reconnecting(self):
+        bridge, session, _ = self.connected_bridge(refresh_interval=60)
+        session["connection"] = "wifi"
+        with patch.object(bridge_module, "emit"), patch.object(bridge_module, "connection_lockdown", AsyncMock()) as probe:
+            await bridge.dispatch("set", {"udid": "phone", "connection": "wifi", "latitude": 1, "longitude": 2, "sessionId": "live"})
+            result = await bridge.dispatch("update", {"udid": "phone", "connection": "wifi", "latitude": 3, "longitude": 4, "sessionId": "live"})
+            probe.assert_not_awaited()
+        self.assertTrue(result["applied"])
+        self.assertEqual(bridge.connect.await_count, 1)
+        self.assertEqual(session["location"].set.await_args.args, (3, 4))
+        self.assertEqual(session["target"]["latitude"], 3)
+
+    async def test_update_without_a_live_session_fails_fast(self):
+        bridge = bridge_module.Bridge()
+        with self.assertRaisesRegex(ConnectionError, "no longer active"):
+            await bridge.dispatch("update", {"udid": "phone", "latitude": 1, "longitude": 2})
+        bridge, session, _ = self.connected_bridge(refresh_interval=60)
+        with patch.object(bridge_module, "emit"):
+            with self.assertRaisesRegex(ConnectionError, "no longer active"):
+                await bridge.dispatch("update", {"udid": "phone", "latitude": 1, "longitude": 2})
+            await bridge.dispatch("set", {"udid": "phone", "latitude": 1, "longitude": 2})
+            for params in ({"udid": "another-phone"}, {"udid": "phone", "connection": "wifi"}):
+                with self.assertRaisesRegex(ConnectionError, "no longer active"):
+                    await bridge.dispatch("update", {**params, "latitude": 3, "longitude": 4})
+        self.assertEqual(session["location"].set.await_args.args, (1, 2))
+
+    async def test_update_on_a_closed_stream_ends_the_session(self):
+        bridge, session, _ = self.connected_bridge(refresh_interval=60)
+        with patch.object(bridge_module, "emit") as emit:
+            await bridge.dispatch("set", {"udid": "phone", "latitude": 1, "longitude": 2, "sessionId": "live"})
+            session["dvt"].dtx._closed = True
+            with self.assertRaisesRegex(ConnectionError, "connection ended"):
+                await bridge.dispatch("update", {"udid": "phone", "latitude": 3, "longitude": 4, "sessionId": "live"})
+        self.assertIsNone(bridge.session)
+        self.assertEqual(emit.call_args.args[0]["event"], "session-ended")
+        self.assertEqual(session["location"].set.await_count, 1)
+
     async def test_enabling_wifi_uses_usb_trust_and_caches_pair_record(self):
         bridge = bridge_module.Bridge()
         lockdown = AsyncMock()

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Fix routes, wander mode and natural drift on an iPhone over Wi-Fi. Each once-a-second step searched the network for the phone again, which takes two seconds over Wi-Fi: routes paused themselves straight away, and a held place could drop its connection when one search missed the phone. Steps now go straight to the live connection. Over USB this also stops a fresh device handshake every second while a place is held.
+- Fix GPX imports that could freeze Wraith for minutes. Tracks that zigzag or jitter in place, or whose timestamps never advance, now import in about a second.
+- Starting a route or wander mode no longer adds its start point to Recent places.
+- Show trip times such as "2 hr 0 min" instead of "1 hr 60 min".
+- Remove backslashes from suggested GPX export file names.
+- Update Electron to 44.7.0.
+
 ## 0.3.1
 
 - Never save a Geoapify key in plain text. Keys are written to disk only when encrypted with the system's secure storage (Keychain, DPAPI, or a Linux keyring). Without secure storage, a key works until you quit but isn't saved. A key that 0.3.0 saved without encryption is encrypted when Wraith opens, or removed from disk if secure storage still isn't available.

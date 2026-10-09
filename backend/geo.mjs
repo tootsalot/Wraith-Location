@@ -83,6 +83,8 @@ export function simplifyIndices(coordinates, toleranceMeters = 1) {
   const keep = new Uint8Array(coordinates.length);
   keep[0] = keep[coordinates.length - 1] = 1;
   const stack = [[0, coordinates.length - 1]];
+  const budget = 40 * coordinates.length;
+  let work = 0;
   while (stack.length) {
     const [first, last] = stack.pop();
     const a = coordinates[first], b = coordinates[last];
@@ -96,7 +98,15 @@ export function simplifyIndices(coordinates, toleranceMeters = 1) {
       const d = Math.hypot(px - t * bx, py - t * by);
       if (d > worstDistance) { worst = i; worstDistance = d; }
     }
-    if (worst > 0) { keep[worst] = 1; stack.push([first, worst], [worst, last]); }
+    if (worst > 0) {
+      // On zigzags and GPS noise the farthest point keeps landing beside an end, which
+      // makes the classic split quadratic. Past a work budget, a lopsided long span splits
+      // at its middle instead: same tolerance guarantee, at the cost of a few extra points.
+      const span = last - first;
+      work += span;
+      const split = work > budget && span > 64 && Math.min(worst - first, last - worst) * 4 < span ? (first + last) >>> 1 : worst;
+      keep[split] = 1; stack.push([first, split], [split, last]);
+    }
   }
   const indices = [];
   keep.forEach((kept, i) => { if (kept) indices.push(i); });

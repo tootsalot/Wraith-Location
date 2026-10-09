@@ -192,7 +192,8 @@ export class IosAdapter {
     return this.request('enable-wifi', this.deviceParams(device), 60_000);
   }
   async prepare(device) { return this.request('prepare', this.deviceParams(device), 180000); }
-  async set(device, { latitude, longitude, sessionId = null, reconnecting = false }) {
+  async set(device, point) { return this.sendTarget('set', device, point); }
+  async sendTarget(method, device, { latitude, longitude, sessionId = null, reconnecting = false }) {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
       throw new Error('Latitude or longitude is invalid.');
     }
@@ -202,7 +203,7 @@ export class IosAdapter {
       acknowledged: false, refreshCount: 0 };
     this.target = target;
     try {
-      const result = await this.request('set', { ...params, latitude, longitude, sessionId, generation: target.generation }, reconnecting ? 20000 : 60000);
+      const result = await this.request(method, { ...params, latitude, longitude, sessionId, generation: target.generation }, reconnecting ? 20000 : 60000);
       if (result?.applied !== true) throw new Error('The iPhone did not acknowledge the location update.');
       if (target.endError) throw new Error(target.endError);
       if (this.target === target && !this.disposing) {
@@ -237,7 +238,9 @@ export class IosAdapter {
   }
   async update(device, point) {
     if (this.activeDeviceId !== device.id || this.activeTarget?.sessionId !== point.sessionId) throw new Error('The iPhone route session is no longer active. Reconnect this phone.');
-    return this.set(device, { ...point, reconnecting: true });
+    // Retarget the live stream. Unlike set, the helper skips its reconnect probe,
+    // which over Wi-Fi is a two-second network search on every step.
+    return this.sendTarget('update', device, { ...point, reconnecting: true });
   }
   async reset(device) {
     const params = this.deviceParams(device);
