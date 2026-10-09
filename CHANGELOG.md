@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2
 
 - Fix routes, wander mode and natural drift on an iPhone over Wi-Fi. Each once-a-second step searched the network for the phone again, which takes two seconds over Wi-Fi: routes paused themselves straight away, and a held place could drop its connection when one search missed the phone. Steps now go straight to the live connection. Over USB this also stops a fresh device handshake every second while a place is held.
 - Fix GPX imports that could freeze Wraith for minutes. Tracks that zigzag or jitter in place, or whose timestamps never advance, now import in about a second.

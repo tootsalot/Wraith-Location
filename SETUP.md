@@ -8,11 +8,11 @@ Download the installer for your computer from the [latest release](https://githu
 
 | Your computer | Installer |
 | --- | --- |
-| Mac with an Apple chip (M1 or newer) | `Wraith-0.3.1-mac-arm64.dmg` |
-| Mac with an Intel processor | `Wraith-0.3.1-mac-x64.dmg` |
-| Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.3.1-win-x64.exe` |
-| Ubuntu or Debian, 64-bit | `Wraith-0.3.1-linux-amd64.deb` |
-| Other Linux, 64-bit | `Wraith-0.3.1-linux-x86_64.AppImage` |
+| Mac with an Apple chip (M1 or newer) | `Wraith-0.3.2-mac-arm64.dmg` |
+| Mac with an Intel processor | `Wraith-0.3.2-mac-x64.dmg` |
+| Windows PC with an Intel/AMD 64-bit processor | `Wraith-0.3.2-win-x64.exe` |
+| Ubuntu or Debian, 64-bit | `Wraith-0.3.2-linux-amd64.deb` |
+| Other Linux, 64-bit | `Wraith-0.3.2-linux-x86_64.AppImage` |
 
 On Mac, **Apple menu → About This Mac** identifies the chip. On Windows, look at **Settings → System → About → System type**. Windows ARM and ARM Linux are not release targets. Native builds are checked on macOS 15, Windows Server 2025 and Ubuntu 24.04; other OS versions have not been rehearsed.
 

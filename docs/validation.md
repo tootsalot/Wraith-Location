@@ -3,6 +3,17 @@
 Results of checks run on real builds. Automated tests use simulated phones; real-device
 results are in [hardware-test-matrix.md](hardware-test-matrix.md).
 
+## 0.3.2 (Windows x64)
+
+| Check | Result |
+| --- | --- |
+| `npm test` | All 186 unit tests pass, including the iPhone helper's new `update` method (26 sidecar tests). |
+| `npm run test:renderer-session` | Passes on Electron 44.7.0: route plan/start/pause/resume, Wi-Fi prompt and handoff, live-update stability. |
+| iPhone helper | Rebuilt for protocol 2; `scripts/check-resources.mjs` passes for win32-x64. |
+| GPX import | A 60,000-point zigzag track with repeated timestamps imports in about 1 second (was about 246 seconds). |
+| Real phone | iPhone over Wi-Fi user-observed working in a development build (October 2026). |
+| Release check | `scripts/release-notes.mjs --tag v0.3.2` matches package.json and CHANGELOG.md. |
+
 ## 0.3.0 (Windows x64)
 
 | Check | Result |
