@@ -831,7 +831,7 @@ function renderKeys() {
   if (!geoapify.configured) { setContent('#geoapify-status', ''); return; }
   const used = Math.round(geoapify.credits), percent = Math.min(100, geoapify.credits / geoapify.limit * 100);
   const resets = new Date(geoapify.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const storage = geoapify.development ? 'Development key from .env, used for this run only.' : geoapify.encrypted ? 'Stored encrypted on this computer.' : 'Stored on this computer in a file only you can read. Secure storage is unavailable.';
+  const storage = geoapify.development ? 'Development key from .env, used for this run only.' : geoapify.encrypted ? 'Stored encrypted on this computer.' : 'Kept until you quit Wraith, but not saved: this computer has no secure storage to keep it encrypted.';
   const detail = geoapify.paused ? `Using the free services until ${resets}, when the daily allowance resets.` : 'Search and pin names use Geoapify.';
   setContent('#geoapify-status', `<div class="runtime-row"><div>${icon('check')}<span><strong>Geoapify key added</strong><small>${esc(detail)} ${esc(storage)}</small></span></div><span class="runtime-tag ${geoapify.paused ? '' : 'available'}">${geoapify.paused ? 'Paused today' : 'On'}</span></div>
     <div class="usage-meter${geoapify.warning ? ' warn' : ''}"><div class="usage-bar" role="progressbar" aria-label="Geoapify credits used today" aria-valuemin="0" aria-valuemax="${geoapify.limit}" aria-valuenow="${used}"><span style="width:${percent.toFixed(1)}%"></span></div><small>About ${used.toLocaleString()} of ${geoapify.limit.toLocaleString()} credits used today${geoapify.warning && !geoapify.paused ? '. Wraith switches to the free services at the limit.' : ''}</small></div>

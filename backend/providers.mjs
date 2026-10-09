@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { mkdir, readFile, writeFile, rename, copyFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, copyFile, chmod } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { USER_AGENT } from './version.mjs';
 
@@ -23,7 +23,8 @@ export class ProviderError extends Error {
 
 export class Providers extends EventEmitter {
   // `secure` wraps the operating system's secure storage (Electron safeStorage).
-  // Without it, a key is kept in a file only this user can read.
+  // A key is written to disk only when encrypted with it; without secure
+  // storage, the key is kept in memory for this run and never saved.
   constructor({ path, secure = null, fetchImpl = fetch, now = Date.now, developmentKey = null } = {}) {
     super();
     this.path = path; this.secure = secure; this.fetch = fetchImpl; this.now = now;
@@ -56,21 +57,39 @@ export class Providers extends EventEmitter {
       } catch {
         this.warning = 'Your saved Geoapify key could not be unlocked on this computer. Add it again in Settings.';
       }
+      // Wraith 0.3.0 could save a key in plain text. Encrypt it now, or take it off disk.
+      if (this.key && !saved.encrypted) {
+        await this.persistKey().catch(() => {});
+        if (!this.encrypted) this.warning = 'Your Geoapify key was saved without encryption, so Wraith removed it from disk. It works until you quit; this computer has no secure storage to save it.';
+      }
     }
     this.rollDay();
     return this.status();
   }
   async save() {
     const data = { schemaVersion: 1, usage: this.usage };
-    if (this.key && !this.development) data.geoapify = { key: this.encrypted ? this.secure.encrypt(this.key).toString('base64') : this.key, encrypted: this.encrypted };
+    // Never write a key in plain text.
+    if (this.key && this.encrypted && !this.development) data.geoapify = { key: this.secure.encrypt(this.key).toString('base64'), encrypted: true };
     const content = JSON.stringify(data, null, 2);
     const operation = this.queue.catch(() => {}).then(async () => {
       await mkdir(dirname(this.path), { recursive: true });
       await writeFile(`${this.path}.tmp`, content, { mode: 0o600 });
+      // writeFile's mode applies only to new files; a leftover temporary file keeps its own.
+      await chmod(`${this.path}.tmp`, 0o600);
       await rename(`${this.path}.tmp`, this.path);
     });
     this.queue = operation;
     return operation;
+  }
+  // Save the key encrypted when secure storage works; otherwise keep it for this run only.
+  async persistKey() {
+    this.encrypted = Boolean(this.secure?.available());
+    try { await this.save(); }
+    catch (error) {
+      if (!this.encrypted) throw error;
+      this.encrypted = false;
+      await this.save();
+    }
   }
   rollDay() {
     const today = utcDay(this.now());
@@ -85,6 +104,7 @@ export class Providers extends EventEmitter {
     return {
       geoapify: {
         configured: Boolean(this.key), development: this.development, encrypted: this.encrypted,
+        sessionOnly: Boolean(this.key) && !this.development && !this.encrypted,
         active: Boolean(this.key) && !paused, paused,
         credits, limit: GEOAPIFY_DAILY_CREDITS,
         warning: credits >= GEOAPIFY_DAILY_CREDITS * GEOAPIFY_WARN_RATIO,
@@ -100,10 +120,9 @@ export class Providers extends EventEmitter {
     // Test the key before keeping it, so Settings can say plainly whether it works.
     await this.request('/v1/geocode/reverse', { ...KEY_TEST_POINT, limit: 1, format: 'json' }, { credits: 1, key, test: true });
     this.key = key; this.development = false;
-    this.encrypted = Boolean(this.secure?.available());
     // A new key gets a fresh chance today; credits keep counting for the day.
     this.usage.pausedDay = null;
-    await this.save(); this.changed();
+    await this.persistKey(); this.changed();
     return this.status();
   }
   async removeGeoapifyKey() {

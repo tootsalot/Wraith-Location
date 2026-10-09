@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, stat, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Providers, GEOAPIFY_DAILY_CREDITS } from '../backend/providers.mjs';
@@ -56,10 +56,41 @@ test('a key is tested before saving, encrypted on disk and never exposed in stat
   assert.ok(!(await readFile(file, 'utf8')).includes('geoapify'));
 });
 
-test('without secure storage, a key is kept in a private file and reported as unencrypted', async t => {
+test('without secure storage, a key works for this run but is never written to disk', async t => {
   const { file, providers } = await setup(t, { fetchImpl: async () => json({ results: [] }), secure: { available: () => false } });
-  assert.equal((await providers.setGeoapifyKey(KEY)).geoapify.encrypted, false);
-  assert.match(await readFile(file, 'utf8'), new RegExp(KEY));
+  const status = (await providers.setGeoapifyKey(KEY)).geoapify;
+  assert.deepEqual([status.configured, status.active, status.encrypted, status.sessionOnly], [true, true, false, true]);
+  assert.ok(!(await readFile(file, 'utf8')).includes(KEY));
+  const next = new Providers({ path: file, secure: { available: () => false }, now: () => DAY });
+  assert.equal((await next.load()).geoapify.configured, false);
+});
+
+test('if encryption fails, the key is kept for this run only', async t => {
+  const failing = { available: () => true, encrypt: () => { throw new Error('keyring locked'); } };
+  const { file, providers } = await setup(t, { fetchImpl: async () => json({ results: [] }), secure: failing });
+  assert.equal((await providers.setGeoapifyKey(KEY)).geoapify.sessionOnly, true);
+  assert.ok(!(await readFile(file, 'utf8')).includes(KEY));
+});
+
+test('a plain-text key saved by 0.3.0 is encrypted on load, or removed from disk without secure storage', async t => {
+  const { dir } = await setup(t, { fetchImpl: async () => json({ results: [] }) });
+  const legacy = JSON.stringify({ schemaVersion: 1, usage: { day: '2026-10-08', credits: 5 }, geoapify: { key: KEY, encrypted: false } });
+  const encryptedFile = path.join(dir, 'encrypt.json');
+  await writeFile(encryptedFile, legacy);
+  const upgraded = new Providers({ path: encryptedFile, secure, now: () => DAY });
+  assert.deepEqual([(await upgraded.load()).geoapify.encrypted, upgraded.key], [true, KEY]);
+  const raw = JSON.parse(await readFile(encryptedFile, 'utf8'));
+  assert.equal(raw.geoapify.encrypted, true);
+  assert.ok(!JSON.stringify(raw).includes(KEY));
+  assert.equal(raw.usage.credits, 5);
+
+  const removedFile = path.join(dir, 'remove.json');
+  await writeFile(removedFile, legacy);
+  const insecure = new Providers({ path: removedFile, secure: { available: () => false }, now: () => DAY });
+  assert.equal((await insecure.load()).geoapify.sessionOnly, true);
+  assert.equal(insecure.key, KEY);
+  assert.match(insecure.warning, /removed it from disk/);
+  assert.ok(!(await readFile(removedFile, 'utf8')).includes(KEY));
 });
 
 test('a key that cannot be decrypted is dropped with a warning', async t => {

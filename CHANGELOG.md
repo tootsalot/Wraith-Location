@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Never save a Geoapify key in plain text. Keys are written to disk only when encrypted with the system's secure storage (Keychain, DPAPI, or a Linux keyring). Without secure storage, a key works until you quit but isn't saved. A key that 0.3.0 saved without encryption is encrypted when Wraith opens, or removed from disk if secure storage still isn't available.
+
 ## 0.3.0
 
 - Add optional Geoapify keys. Paste your own free key under **Free API keys** in Settings; Wraith tests it, then stores it encrypted with the system's secure storage. With a key, place search uses Geoapify (falling back to Photon) and dropped pins get a real address when set or saved. Settings shows roughly how many of the 3,000 daily credits have been used, warns at 80%, and switches to the free services at the limit or on a rate limit. "Powered by Geoapify" appears on the map and under search results while a key is set. See `docs/api-keys.md`.

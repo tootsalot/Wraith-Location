@@ -71,9 +71,12 @@ Geoapify's terms apply to your account.
 ### Where the key is stored
 
 The key is saved in `providers.json` in Wraith's settings folder, encrypted with
-your operating system's secure storage (Keychain on macOS, DPAPI on Windows). If
-secure storage isn't available, the file is readable only by your user account,
-and Settings tells you so. The key is never sent to the interface or anywhere
+your operating system's secure storage (Keychain on macOS, DPAPI on Windows, and
+the desktop keyring, such as GNOME Keyring or KWallet, on Linux). Wraith never
+writes a key in plain text. If secure storage isn't available, the key works until
+you quit Wraith but isn't saved, and Settings tells you so. A key that Wraith 0.3.0
+saved without encryption is encrypted the next time Wraith opens, or removed from
+disk if secure storage still isn't available. The key is never sent to the interface or anywhere
 except Geoapify's API.
 
 ### For developers
